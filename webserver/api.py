@@ -8,7 +8,8 @@ from robot import get_robot, gen_uuid, robot_status, mines_status, get_mine, rob
 
 filtered_paths = ["/api/position","/api/waypoint","/api/swing",
     "/api/refuel","/api/energy","/api/log","/api/step", "/api/load",
-    "/api/halt", "/api/slots", "/status", "/favicon.ico", "/api/robots_status.json",
+    "/api/halt", "/api/slots", "/api/error",
+    "/status", "/favicon.ico", "/api/robots_status.json",
     "/api/mines_status.json", "/api/mine_complete", "/api/clear_errors"]
 
 class LogFilter(logging.Filter):
