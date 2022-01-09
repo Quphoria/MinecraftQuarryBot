@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+
+<html lang="en">
+    <head>
+        <!-- Required meta tags -->
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <title>Robot status</title>
+
+        <!-- Vendor CSS -->
+        <link rel="stylesheet" href="https://kit-free.fontawesome.com/releases/latest/css/free.min.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/css/bootstrap.min.css" integrity="sha384-zCbKRCUGaJDkqS1kPbPd7TveP5iyJE0EjAuZQTgFLD2ylzuqKfdKlfG/eSrtxUkn" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://unpkg.com/bootstrap-table@1.19.1/dist/bootstrap-table.min.css">
+    </head>
+    <body class="p-2" style="font-size: 1.1rem;">
+        <div class="d-flex flex-row justify-content-between">
+            <h2>Robot status</h2>
+            <button class="btn py-0" style="font-size: 1.5rem;" onclick="location.reload();">
+                <i class="fa fa-sync"></i>
+            </button>
+        </div>
+        <!-- Form Iframe -->
+        <iframe name="dummyframe" id="dummyframe" style="display: none;"></iframe>
+        <!-- Error Modal -->
+        <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+            <div class="modal-dialog" style="max-width: 80% !important;">
+            <div class="modal-content">
+                <div class="modal-header">
+                <h5 class="modal-title" id="errorModalLabel">Errors for <span class="bot_id"></span></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                </div>
+                <div class="modal-body d-block overflow-auto" style="max-height: 75vh; font-size: 1rem">
+                    <table id="error-table"
+                    data-search="true"
+                    data-show-multi-sort="true"
+                    data-pagination="true">
+                    <thead>
+                        <tr>
+                            <th data-align="center" data-width="75" data-sortable="true" data-field="id">#</th>
+                            <th data-align="center" data-sortable="true" data-field="error">Error</th>
+                        </tr>
+                    </thead>
+                </table>
+                </div>
+                <div class="modal-footer">
+                    <form action="/api/clear_errors" method="post" target="dummyframe">
+                        <input class="bot_id" name="bot_id" type="text" hidden></input>
+                        <button id="errorModalSubmit" type="submit" class="btn btn-primary">Clear Errors</button>
+                    </form>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+              <a class="nav-link active" id="home-tab" data-toggle="tab" href="#home" role="tab" aria-controls="home" aria-selected="true">Home</a>
+            </li>
+            <li class="nav-item" role="presentation">
+              <a class="nav-link" id="robots-tab" data-toggle="tab" href="#robots" role="tab" aria-controls="robots" aria-selected="false">Robots</a>
+            </li>
+            <li class="nav-item" role="presentation">
+              <a class="nav-link" id="mines-tab" data-toggle="tab" href="#mines" role="tab" aria-controls="mines" aria-selected="false">Mines</a>
+            </li>
+          </ul>
+          <div class="tab-content p-4">
+            <div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
+                <p>
+                    <h5><b>Robots</b></h5>
+                    <div>Online: {{ robots.online }}/{{ robots.total }}</div>
+                    <div>Active: {{ robots.active }}/{{ robots.online }}</div>
+                    <div>With errors: {{ robots.errors }}</div>
+                </p>
+                <p>
+                    <h5><b>Mines</b></h5>
+                    <div>Total: {{ mines.total }}</div>
+                    <div>Complete: {{ mines.complete }}</div>
+                    <div>Stopped: {{ mines.stopped }}</div>
+                    <div>Assigned: {{ mines.assigned }}</div>
+                </p>
+            </div>
+            <div class="tab-pane fade" id="robots" role="tabpanel" aria-labelledby="robots-tab">
+                <template id="errorButton">
+                    <button class="btn btn-outline-dark pb-2" data-toggle="modal" data-target="#errorModal">
+                        <span>⚠️</span>
+                    </button>
+                </template>
+                <table id="robot-table"
+                    data-search="true"
+                    data-show-multi-sort="true"
+                    data-show-refresh="true"
+                    data-auto-refresh="true"
+                    data-auto-refresh-silent="true"
+                    data-auto-refresh-interval="5"
+                    data-sort-priority='[{"sortName": "error_num","sortOrder":"desc"},{"sortName":"id","sortOrder":"asc"}]'>
+                    <thead>
+                        <tr>
+                            <th data-align="center" data-sortable="true" data-field="id">Robot ID</th>
+                            <th data-align="center" data-sortable="true" data-formatter="checkFormatter" data-field="connected">Connected</th>
+                            <th data-align="center" data-sortable="true" data-formatter="checkFormatter" data-field="paused">Paused</th>
+                            <th data-align="right"  data-sortable="true" data-field="energy">Energy</th>
+                            <th data-align="center" data-sortable="true" data-field="mine_id">Mine ID</th>
+                            <th data-align="center" data-sortable="true" data-field="program">Program</th>
+                            <th data-align="left"   data-sortable="true" data-field="pos">Position</th>
+                            <th data-align="center" data-sortable="true" data-field="error_num">Errors</th>
+                            <th data-align="center" data-formatter="errorButtonFormatter">⚠️</th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+            <div class="tab-pane fade" id="mines" role="tabpanel" aria-labelledby="mines-tab">
+                <template id="completeButton">
+                    <form action="/api/mine_complete" method="post" target="dummyframe">
+                        <input class="mine_id" name="mine_id" type="text" hidden></input>
+                        <button type="submit" class="btn btn-outline-success pb-2">
+                            <span>✔️</span>
+                        </button>
+                    </form>
+                </template>
+                <table id="mine-table"
+                    data-search="true"
+                    data-show-multi-sort="true"
+                    data-show-refresh="true"
+                    data-auto-refresh="true"
+                    data-auto-refresh-silent="true"
+                    data-auto-refresh-interval="5"
+                    data-sort-priority='[{"sortName": "complete","sortOrder":"asc"},{"sortName": "stopped","sortOrder":"desc"},{"sortName": "assigned","sortOrder":"asc"},{"sortName":"id","sortOrder":"asc"}]'>
+                    <thead>
+                        <tr>
+                            <th data-align="center" data-sortable="true" data-field="id">Mine ID</th>
+                            <th data-align="center" data-sortable="true" data-formatter="checkFormatter" data-field="complete">Complete</th>
+                            <th data-align="center" data-sortable="true" data-formatter="checkFormatter" data-field="assigned">Assigned</th>
+                            <th data-align="center" data-sortable="true" data-formatter="checkFormatter" data-field="stopped">Stopped</th>
+                            <th data-align="right"  data-sortable="true" data-field="corner1">Corner 1</th>
+                            <th data-align="center" data-sortable="true" data-field="corner2">Corner 2</th>
+                            <th data-align="center" data-sortable="true" data-field="current">Current Block</th>
+                            <th data-align="center" data-formatter="completeButtonFormatter">✔️</th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+          </div>
+
+        <!-- Vendor JS -->
+        <script src="https://cdn.jsdelivr.net/npm/jquery/dist/jquery.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-fQybjgWLrvvRgtW6bFlB7jaZrFsaBXjsOMm/tB9LTS58ONXgqbR9W8oWht/amnpF" crossorigin="anonymous"></script>
+        <script src="https://unpkg.com/bootstrap-table@1.19.1/dist/bootstrap-table.min.js"></script>
+        <script src="https://unpkg.com/bootstrap-table@1.19.1/dist/extensions/multiple-sort/bootstrap-table-multiple-sort.js"></script>
+        <script src="https://unpkg.com/bootstrap-table@1.19.1/dist/extensions/auto-refresh/bootstrap-table-auto-refresh.min.js"></script>
+
+        <!-- Custom JS -->
+        <script>
+            function checkFormatter(value, row, index){
+                if (value) return "✔️"
+                return "❌"
+            }
+            function errorButtonFormatter(value, row, index){
+                var button = $($("#errorButton").html());
+                button.attr("data-bot_id", row.id);
+                button.attr("data-errors", JSON.stringify(row.errors));
+                // hide button with this
+                // this makes all rows same height
+                if (row.error_num == 0) {
+                    button.attr("style", "visibility: hidden!important");
+                }
+                // get outer html by wrapping in <p> tags
+                return button.wrap('<p/>').parent().html();
+            }
+            function completeButtonFormatter(value, row, index){
+                var button = $($("#completeButton").html());
+                button.find(".mine_id").attr("value", row.id);
+                // hide button with this
+                // this makes all rows same height
+                if (row.complete || !row.stopped) {
+                    button.attr("style", "visibility: hidden!important");
+                }
+                // get outer html by wrapping in <p> tags
+                return button.wrap('<p/>').parent().html();
+            }
+            $(function() {
+                $('#robot-table').bootstrapTable({url: "/api/robots_status.json"});
+                $('#mine-table').bootstrapTable({url: "/api/mines_status.json"});
+                // Set active tab by url # value
+                var url = document.URL;
+                var hash = url.substring(url.indexOf('#'));
+                $(".nav-tabs").find("li a").each(function(key, val) {
+                    if (hash == $(val).attr('href')) {
+                        $(val).click();
+                    }
+                });
+                // Close error modal on submit
+                $('#errorModalSubmit').click(() => $('#errorModal').modal('hide'));
+            });
+            $('#errorModal').on('show.bs.modal', function (event) {
+                var button = $(event.relatedTarget); // Button that triggered the modal
+                var bot_id = button.data('bot_id'); // Extract info from data-* attributes
+                var errors = button.data('errors');
+                var errors_numbered = [];
+                for (var i = 0; i < errors.length; i++) {
+                    errors_numbered.push({
+                        "id": i + 1,
+                        "error": errors[i]
+                    });
+                }
+                
+                var modal = $(this)
+                $('#error-table').bootstrapTable({data: errors_numbered});
+
+                modal.find('.bot_id').text(bot_id);
+                modal.find('.bot_id').val(bot_id);
+            });
+            $('.nav-tabs a').on('click',function(){ window.location.hash = $(this).attr('href'); });
+        </script>
+    </body>
+</html>
