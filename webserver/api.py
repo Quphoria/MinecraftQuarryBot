@@ -4,13 +4,16 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 import json
 
-from robot import get_robot, gen_uuid, robot_status, mines_status, get_mine, robot_info, mine_info, update_waypoint
+from robot import load_bots, load_mines, load_waypoints, get_robot, \
+    gen_uuid, robot_status, mines_status, get_mine, robot_info, \
+    mine_info, update_waypoint, get_waypoint, waypoint_status, waypoint_info
 
 filtered_paths = ["/api/position","/api/waypoint","/api/swing",
     "/api/refuel","/api/energy","/api/log","/api/step", "/api/load",
     "/api/halt", "/api/slots", "/api/error",
     "/status", "/favicon.ico", "/api/robots_status.json",
-    "/api/mines_status.json", "/api/mine_complete", "/api/clear_errors"]
+    "/api/mines_status.json", "/api/waypoints_status.json",
+    "/api/mine_complete", "/api/clear_errors"]
 
 class LogFilter(logging.Filter):
     def filter(self, record):  
@@ -64,6 +67,13 @@ def waypoint_id():
     assert wp_id, "No Waypoint ID!"
     return wp_id
 
+def error_sender_id():
+    if "RobotID" in request.headers:
+        return "bot", bot_id()
+    elif "WaypointID" in request.headers:
+        return "waypoint", waypoint_id()
+    assert False, "No ID!"
+
 @app.route("/")
 def hello_world():
     return "<p>Hello, World!</p>"
@@ -72,7 +82,7 @@ def hello_world():
 @auth.login_required
 def status_page():
     return render_template('status.html',
-        robots=robot_info(), mines=mine_info())
+        robots=robot_info(), mines=mine_info(), waypoints=waypoint_info())
 
 @app.route("/boot.lua")
 def boot_lua():
@@ -124,23 +134,11 @@ def waypoint_api():
     try:
         d = request.get_data().decode()
         update_waypoint(waypoint_id(), d)
-        print(f"[{waypoint_id()}] Waypoint: {d}")
+        # print(f"[{waypoint_id()}] Waypoint: {d}")
         return gen_resp(200, "")
     except Exception as ex:
         raise ex
         return gen_resp(500, "error")
-
-# @app.route("/api/waypoints", methods=['POST', 'OPTIONS'])
-# def waypoints_api():
-#     try:
-#         r = get_robot(bot_id())
-#         d = request.get_data().decode()
-#         r.set_waypoints(d)
-#         # print(f"[{bot_id()}] Waypoints: {d}")
-#         return gen_resp(200, "")
-#     except Exception as ex:
-#         raise ex
-#         return gen_resp(500, "error")
 
 @app.route("/api/swing", methods=['POST', 'OPTIONS'])
 def swing_api():
@@ -189,10 +187,17 @@ def step_api():
 @app.route("/api/error", methods=['POST', 'OPTIONS'])
 def error_api():
     try:
-        r = get_robot(bot_id())
+        sender, sender_id = error_sender_id()
         d = request.get_data().decode()
-        r.error(d)
-        return gen_resp(200, "")
+        if sender == "bot":
+            r = get_robot(sender_id)
+            r.error(d)
+            return gen_resp(200, "")
+        elif sender == "waypoint":
+            w = get_robot(sender_id)
+            w.error(d)
+            return gen_resp(200, "")
+        return gen_resp(500, "")
     except Exception as ex:
         raise ex
         return gen_resp(500, "error")
@@ -230,6 +235,18 @@ def mines_status_json_api():
     )
     return response
 
+@app.route("/api/waypoints_status.json", methods=['GET'])
+@auth.login_required
+def waypoints_status_json_api():
+    data = waypoint_status()
+
+    response = app.response_class(
+        response=json.dumps(data),
+        status=200,
+        mimetype='application/json'
+    )
+    return response
+
 @app.route("/api/mine_complete", methods=['POST', 'OPTIONS'])
 @auth.login_required
 def mine_complete_api():
@@ -248,12 +265,23 @@ def mine_complete_api():
 @auth.login_required
 def clear_errors_api():
     if request and request.form:
-        robot_id = request.form.get('bot_id')
-        r = get_robot(robot_id, create=False)
-        if r:
-            r.clear_errors()
-            return gen_resp(200, "")
+        target_id = request.form.get('id')
+        target_type = request.form.get('type')
+        if target_type == "robot":
+            r = get_robot(target_id, create=False)
+            if r:
+                r.clear_errors()
+                return gen_resp(200, "")
+        elif target_type == "waypoint":
+            w = get_waypoint(target_id)
+            if w:
+                w.clear_errors()
+                return gen_resp(200, "")
     return gen_resp(400, "")
+
+load_waypoints()
+load_mines()
+load_bots()
 
 def main():
     print("Status page at: http://localhost:7777/status")

@@ -16,5 +16,5 @@ while true do
     end
     shell.run("main.lua")
     shell.run("rm main.lua")
-    break
+    -- break
 end

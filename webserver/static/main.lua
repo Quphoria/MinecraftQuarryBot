@@ -87,8 +87,11 @@ function Refuel()
     local last_level = turtle.getFuelLevel()
     while last_level < turtle.getFuelLimit() do
         -- refuel 1 item at a time to prevent wasting fuel
-        turtle.refuel(1) 
+        if not turtle.refuel(1) then
+            break
+        end
         local level = turtle.getFuelLevel()
+        print(level)
         -- fuel level didn't increase stop refueling
         if level <= last_level then break end
         last_level = level
@@ -102,9 +105,11 @@ function GetFuel()
     turtle.select(16)
     while turtle.getFuelLevel() < turtle.getFuelLimit() do
         Refuel()
-        if not turtle.suckDown() then
-            Send_data("No fuel available", "error")
-            break
+        if turtle.getItemSpace() > 0 then
+            if not turtle.suckDown() then
+                Send_data("No fuel available", "error")
+                break
+            end
         end
     end
     turtle.select(last_slot)
@@ -297,7 +302,8 @@ function Process_step()
                 end
 
                 if distance > 1 and good then
-                    for i=1,distance do
+                    -- continue from i = 2
+                    for i=2,distance do
                         if not turtle.forward() then
                             Send_data("moving forward "..tostring(i).." ["..instruction.."]", "error")
                             break
@@ -311,7 +317,7 @@ function Process_step()
     elseif c == "r" then -- refuel
         Refuel()
     elseif c == "f" then -- get fuel
-        Send_data("f not implemented", "error")
+        GetFuel()
     elseif c == "d" then -- dump
         Dump_items()
     elseif c == "b" then -- break block below

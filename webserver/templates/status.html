@@ -26,7 +26,7 @@
             <div class="modal-dialog" style="max-width: 80% !important;">
             <div class="modal-content">
                 <div class="modal-header">
-                <h5 class="modal-title" id="errorModalLabel">Errors for <span class="bot_id"></span></h5>
+                <h5 class="modal-title" id="errorModalLabel">Errors for <span class="id"></span></h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -46,7 +46,8 @@
                 </div>
                 <div class="modal-footer">
                     <form action="/api/clear_errors" method="post" target="dummyframe">
-                        <input class="bot_id" name="bot_id" type="text" hidden></input>
+                        <input class="id" name="id" type="text" hidden></input>
+                        <input class="type" name="type" type="text" hidden></input>
                         <button id="errorModalSubmit" type="submit" class="btn btn-primary">Clear Errors</button>
                     </form>
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
@@ -66,6 +67,9 @@
             <li class="nav-item" role="presentation">
               <a class="nav-link" id="mines-tab" data-toggle="tab" href="#mines" role="tab" aria-controls="mines" aria-selected="false">Mines</a>
             </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link" id="waypoints-tab" data-toggle="tab" href="#waypoints" role="tab" aria-controls="waypoints" aria-selected="false">Waypoints</a>
+              </li>
           </ul>
           <div class="tab-content p-4">
             <div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
@@ -82,13 +86,18 @@
                     <div>Stopped: {{ mines.stopped }}</div>
                     <div>Assigned: {{ mines.assigned }}</div>
                 </p>
+                <p>
+                    <h5><b>Waypoints</b></h5>
+                    <div>Online: {{ waypoints.online }}/{{ waypoints.total }}</div>
+                    <div>With errors: {{ waypoints.errors }}</div>
+                </p>
             </div>
+            <template id="errorButton">
+                <button class="btn btn-outline-dark pb-2" data-toggle="modal" data-target="#errorModal">
+                    <span>⚠️</span>
+                </button>
+            </template>
             <div class="tab-pane fade" id="robots" role="tabpanel" aria-labelledby="robots-tab">
-                <template id="errorButton">
-                    <button class="btn btn-outline-dark pb-2" data-toggle="modal" data-target="#errorModal">
-                        <span>⚠️</span>
-                    </button>
-                </template>
                 <table id="robot-table"
                     data-search="true"
                     data-show-multi-sort="true"
@@ -107,7 +116,7 @@
                             <th data-align="center" data-sortable="true" data-field="program">Program</th>
                             <th data-align="left"   data-sortable="true" data-field="pos">Position</th>
                             <th data-align="center" data-sortable="true" data-field="error_num">Errors</th>
-                            <th data-align="center" data-formatter="errorButtonFormatter"></th>
+                            <th data-align="center" data-formatter="robotErrorButtonFormatter"></th>
                         </tr>
                     </thead>
                 </table>
@@ -143,6 +152,28 @@
                     </thead>
                 </table>
             </div>
+            <div class="tab-pane fade" id="waypoints" role="tabpanel" aria-labelledby="waypoints-tab">
+                <table id="waypoint-table"
+                    data-search="true"
+                    data-show-multi-sort="true"
+                    data-show-refresh="true"
+                    data-auto-refresh="true"
+                    data-auto-refresh-silent="true"
+                    data-auto-refresh-interval="5"
+                    data-sort-priority='[{"sortName": "error_num","sortOrder":"desc"},{"sortName":"id","sortOrder":"asc"}]'>
+                    <thead>
+                        <tr>
+                            <th data-align="center" data-sortable="true" data-field="id">Waypoint ID</th>
+                            <th data-align="left"  data-sortable="true" data-field="label">Label</th>
+                            <th data-align="center" data-sortable="true" data-formatter="checkFormatter" data-field="connected">Connected</th>
+                            <th data-align="center" data-sortable="true" data-formatter="checkFormatter" data-field="powered">Powered</th>
+                            <th data-align="left"   data-sortable="true" data-field="pos">Position</th>
+                            <th data-align="center" data-sortable="true" data-field="error_num">Errors</th>
+                            <th data-align="center" data-formatter="waypointErrorButtonFormatter"></th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
           </div>
 
         <!-- Vendor JS -->
@@ -158,9 +189,23 @@
                 if (value) return "✔️"
                 return "❌"
             }
-            function errorButtonFormatter(value, row, index){
+            function robotErrorButtonFormatter(value, row, index){
                 var button = $($("#errorButton").html());
-                button.attr("data-bot_id", row.id);
+                button.attr("data-id", row.id);
+                button.attr("data-type", "robot");
+                button.attr("data-errors", JSON.stringify(row.errors));
+                // hide button with this
+                // this makes all rows same height
+                if (row.error_num == 0) {
+                    button.attr("style", "visibility: hidden!important");
+                }
+                // get outer html by wrapping in <p> tags
+                return button.wrap('<p/>').parent().html();
+            }
+            function waypointErrorButtonFormatter(value, row, index){
+                var button = $($("#errorButton").html());
+                button.attr("data-id", row.id);
+                button.attr("data-waypoint", "robot");
                 button.attr("data-errors", JSON.stringify(row.errors));
                 // hide button with this
                 // this makes all rows same height
@@ -184,6 +229,7 @@
             $(function() {
                 $('#robot-table').bootstrapTable({url: "/api/robots_status.json"});
                 $('#mine-table').bootstrapTable({url: "/api/mines_status.json"});
+                $('#waypoint-table').bootstrapTable({url: "/api/waypoints_status.json"});
                 // Set active tab by url # value
                 var url = document.URL;
                 var hash = url.substring(url.indexOf('#'));
@@ -197,7 +243,8 @@
             });
             $('#errorModal').on('show.bs.modal', function (event) {
                 var button = $(event.relatedTarget); // Button that triggered the modal
-                var bot_id = button.data('bot_id'); // Extract info from data-* attributes
+                var target_id = button.data('id'); // Extract info from data-* attributes
+                var target_type = button.data('type'); // Extract info from data-* attributes
                 var errors = button.data('errors');
                 var errors_numbered = [];
                 for (var i = 0; i < errors.length; i++) {
@@ -208,10 +255,12 @@
                 }
                 
                 var modal = $(this)
+                $('#error-table').bootstrapTable("destroy");
                 $('#error-table').bootstrapTable({data: errors_numbered});
 
-                modal.find('.bot_id').text(bot_id);
-                modal.find('.bot_id').val(bot_id);
+                modal.find('.id').text(target_id);
+                modal.find('.id').val(target_id);
+                modal.find('.type').val(target_type);
             });
             $('.nav-tabs a').on('click',function(){ window.location.hash = $(this).attr('href'); });
         </script>

@@ -10,6 +10,8 @@ function Send_data(data, path)
     end
     local h = http.post(Url..path, data, {WaypointID = WaypointID})
     if not h then
+        print("HTTP request failed to "..Url..path)
+        os.sleep(30)
         error("HTTP request failed to "..Url..path)
     end
     local result = h.readAll()
@@ -35,6 +37,7 @@ function New_name()
     else
         Send_data("error saving waypoint name", "error")
     end
+    error("restarting program")
 end
 
 function Load_name()
@@ -103,6 +106,11 @@ local last_status = ""
 local i = 0
 while true do
     local pos = Pos_string()
+    if pos == "no gps location" then
+        print("No GPS location")
+        os.sleep(30)
+        error("No GPS location")
+    end
     local powered = tostring(Is_Redstone_Powered())
     local s = pos..";"..powered..";"..Name
     -- send status if status changed or 30 seconds have elapsed

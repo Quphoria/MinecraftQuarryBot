@@ -3,19 +3,18 @@ from enum import Enum, auto
 import math, re, sys, os, secrets, time, json
 
 from mc import Pos
-from waypoint import Waypoint, get_waypoint, update_waypoint, get_waypoints_by_label
-from mine import get_mine, new_mine, get_free_mine, load_mines, mines_status, mine_info
+from waypoint import Waypoint, get_waypoint, update_waypoint, \
+    get_waypoints_by_label, load_waypoints, waypoint_status, waypoint_info
+from mine import get_mine, new_mine, get_free_mine, \
+    load_mines, mines_status, mine_info
 
 robots = {}
 
-low_energy = 20000 # 10000
-full_energy = 40000 # 40000
+low_energy = 10000
 
-recharge_height = 3
+move_height = 3
 move_dist = 30
 home_on_init = True
-
-do_refuel = False
 
 # waypoint are actually the block with the particals, not the actual waypoint
 # waypoint format XYZ: x, y, z
@@ -40,7 +39,7 @@ class Program(Enum):
     Mine = auto()
     Dump = auto()
     Find = auto()
-    Recharge = auto()
+    Refuel = auto()
     Home = auto()
     Initialise = auto()
     Error = auto()
@@ -61,12 +60,9 @@ class Robot:
     empty_slots: bool = False
     mine_id: str = None
     last_move_mine: bool = False
-    search_complete: bool = False
     paused_at_home: bool = False
     errors: list[str] = field(default_factory=lambda: [])
-    # time, start energy
-    recharge_start: tuple[int, int] = field(default_factory=lambda: (0, 0))
-
+    
     def __post_init__(self):
         if not self.from_save:
             self.save()
@@ -93,13 +89,18 @@ class Robot:
             print("Failed to load bot:", filename)
             return None
 
+    def get_program_name(self):
+        if self.current_program == Program.Find:
+            return f"{Program.Find.name} [{self.find_program.name}]"
+        return self.current_program.name
+
     def status(self):
         data = {
             "id": self.bot_id,
             "connected": self.connected,
             "paused": self.paused_at_home,
             "energy": self.energy,
-            "program": self.current_program.name,
+            "program": self.get_program_name(),
             "error_num": len(self.errors),
             "errors": self.errors
         }
@@ -143,9 +144,9 @@ class Robot:
      
     def set_energy(self, s):
         self.energy = int(s)
-        if self.energy < low_energy and self.current_program != Program.Recharge:
+        if self.energy < low_energy and self.current_program != Program.Refuel:
             self.next_program = Program.Find
-            self.find_program = Program.Recharge
+            self.find_program = Program.Refuel
             self.resume_program = self.current_program
 
     def set_empty_slots(self, s):
@@ -157,18 +158,15 @@ class Robot:
         moves = []
         for i in range(full_moves):
             moves.append(move + str(max_size))
-            if do_refuel:
-                moves.append("r")
-            moves.append("s")
         if remaining_move:
             moves.append(move + str(remaining_move))
         return moves
 
-    def move_relative(self, move: Pos, clearance_height=recharge_height, load_position=True):
+    def move_relative(self, move: Pos, clearance_height=move_height, load_position=True):
         steps = []
 
         # this is a very simple path
-        # it goes up by recharge height
+        # it goes up by move height
         # goes north/south, then east/west
         # then down to the charger
 
@@ -192,11 +190,8 @@ class Robot:
 
         steps += self.split_move("md", clearance_height - move.y)
         
-        if len(steps) < 2 or steps[-1] != "s":
-            # don't add refuel and status if last step was a status
-            if do_refuel:
-                steps.append("r") # refuel after move
-            steps.append("s") # get status after move
+        steps.append("r") # refuel after move
+        steps.append("s") # get status after move
         if load_position:
             steps.append("p") # get position after move complete
         else:
@@ -204,7 +199,7 @@ class Robot:
         self.last_move_mine = False
         return steps
 
-    def move_to_pos(self, pos: Pos, clearance_height=recharge_height, load_position=True):
+    def move_to_pos(self, pos: Pos, clearance_height=move_height, load_position=True):
         if self.pos is None:
             print(f"[{self.bot_id}] Position unknown")
             self.next_program = Program.Error
@@ -213,14 +208,15 @@ class Robot:
         move = pos - self.pos
         return self.move_relative(move, clearance_height=clearance_height, load_position=load_position)
 
-    def get_waypoint(self, label):
+    def get_waypoint(self, label, show_error=True):
         if self.pos is None:
             print(f"[{self.bot_id}] Position unknown")
             return None
         try:
             w = min(get_waypoints_by_label(label), key=lambda w: abs(w.pos - self.pos))
         except ValueError: # empty list
-            print(f"[{self.bot_id}] Unable to find {label} nearby!!!")
+            if show_error:
+                print(f"[{self.bot_id}] Unable to find {label} nearby!!!")
             return None
         return w
 
@@ -262,15 +258,14 @@ class Robot:
     def load_program_steps(self):
         steps = []
         p = self.current_program
-        if p == Program.Recharge:
-            steps = self.move_to_waypoint("Charger")
+        if p == Program.Refuel:
+            steps = self.move_to_waypoint("Fuel", height_offset=2)
             if steps:
-                steps.append("c") # start charging
+                steps.append("f") # start fueling
         elif p == Program.Find:
             # if we are in the middle of a move
-            # we need to update the waypoints
-            steps = ["w"]
-            self.search_complete = False
+            # we need to update the position
+            steps = ["p"]
         elif p == Program.Home:
             # attempt to move to personal home
             # resort to shared home if not found
@@ -278,11 +273,11 @@ class Robot:
             if steps is None:
                 steps = self.move_to_waypoint("Home", height_offset=1)
         elif p == Program.Dump:
-            steps = self.move_to_waypoint("Dump", height_offset=1)
+            steps = self.move_to_waypoint("Dump", height_offset=2)
             if steps:
                 steps.append("d") # start dumping
         elif p == Program.BreakBlock:
-            steps = self.move_to_waypoint("BreakBlock")
+            steps = self.move_to_waypoint("BreakBlock", height_offset=2)
             if steps:
                 steps.append("b") # break block below
         elif p == Program.Mine:
@@ -315,8 +310,6 @@ class Robot:
             self.load_program_steps()
         if self.steps:
             step = self.steps.pop(0)
-            if self.current_program == Program.Recharge and step == "c":
-                self.recharge_start = (time.time(), self.energy)
             return step
         
         # calculate next program if not already changed
@@ -332,16 +325,14 @@ class Robot:
                     # get next block to mine by renewing instructions
                     return self.next_step(retry=True, renew=True)
             elif p == Program.Find:
-                if self.search_complete:
-                    self.next_program = self.find_program
-            elif p == Program.Recharge:
-                if self.energy >= full_energy:
-                    self.next_program = self.resume_program
-                    self.recharge_start = (0, 0)
-                # crash as we are not charging
-                elif self.recharge_start[0] > 10 and self.energy < self.recharge_start[1]:
-                    print(f"[{self.bot_id}] is not charging!")
+                self.next_program = self.find_program
+            elif p == Program.Refuel:
+                # crash as we are not refueling properly
+                if self.energy < low_energy:
+                    print(f"[{self.bot_id}] failed to refuel!")
                     self.next_program = Program.Error
+                else:
+                    self.next_program = self.resume_program
             elif p == Program.Initialise:
                 self.next_program = Program.Error
                 if home_on_init:
@@ -360,19 +351,31 @@ class Robot:
                 else:
                     self.next_program = Program.Mine
             elif p == Program.Idle:
-                wp = self.get_waypoint(self.home_wp_name())
-                self.paused_at_home = wp and abs(wp.pos) == 0 and wp.powered
-                if self.paused_at_home:
-                    # if is at home waypoint and wp is powered
-                    # stay at home
-                    # print(f"[{self.bot_id}] at home")
-                    pass
-                elif self.get_mine() or self.new_mine():
-                    if self.empty_slots:
-                        self.next_program = Program.Mine
-                    else:
-                        # dump items if no empty slots
-                        self.next_program = Program.Dump
+                if self.pos is None:
+                    print(f"[{self.bot_id}] idle, no position")
+                else:
+                    wp = self.get_waypoint(self.home_wp_name(), show_error=False)
+                    if wp is None: # fallback to Home if personal home missing
+                        wp = self.get_waypoint("Home", show_error=False) 
+                    if wp is None: # no home, do nothing
+                        return ""
+                    # home position is 1 block above
+                    home_position = wp.pos + Pos(0,1,0)
+                    self.paused_at_home = wp and home_position == self.pos and wp.powered
+                    if self.paused_at_home:
+                        # if is at home waypoint and wp is powered
+                        # stay at home
+                        # print(f"[{self.bot_id}] at home")
+                        pass
+                    elif self.get_mine() or self.new_mine():
+                        if self.empty_slots:
+                            self.next_program = Program.Mine
+                        else:
+                            # dump items if no empty slots
+                            self.next_program = Program.Dump
+                    else: # not at home
+                        self.next_program = Program.Home
+
             else:
                 self.next_program = Program.Idle
         if not retry and self.current_program != self.next_program:
@@ -421,8 +424,6 @@ def robot_info():
         "active": active,
         "errors": errors
     }
-
-load_bots()
 
 # commands
 # m - move 

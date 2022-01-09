@@ -19,14 +19,21 @@ class Mine:
     stopped: bool = False
     complete: bool = False
     pos_x: bool = True
+    valid: bool = True
 
     def __post_init__(self, p1, p2):
         y = max(p1.y, p2.y)
         self.corner1 = Pos(min(p1.x, p2.x), y, min(p1.z, p2.z))
         self.corner2 = Pos(max(p1.x, p2.x), y, max(p1.z, p2.z))
+        if not self.from_save:
+            # reduce mine size to prevent breaking computers
+            self.corner1 += Pos(1, 0, 1)
+            self.corner2 -= Pos(1, 0, 1)
+        self.valid = self.corner1.x <= self.corner2.x and self.corner1.z <= self.corner2.z
+
         self.current = Pos(0, y+1, 0) # only y coord matters
         self.next_layer()
-        if not self.from_save:
+        if self.valid and not self.from_save:
             self.save()
 
     def save(self):
@@ -121,11 +128,14 @@ class Mine:
 def get_mine(mine_id) -> Mine:
     return mines.get(mine_id, None)
 
-def new_mine(mine_id, w1, w2) -> Mine:
+def new_mine(mine_id, w1, w2):
     if not mine_id in mines:
-        mines[mine_id] = Mine(mine_id, w1, w2)
-        print(f"Mine {mine_id} created: {mines[mine_id].corner1} {mines[mine_id].corner2}")
-    return mines[mine_id]
+        mine = Mine(mine_id, w1, w2)
+        if mine.valid:
+            mines[mine_id] = mine
+            print(f"Mine {mine_id} created: {mines[mine_id].corner1} {mines[mine_id].corner2}")
+        else:
+            print(f"Mine {mine_id} invalid")
 
 def load_mines():
     mine_dir = os.path.join(sys.path[0], "mines")
@@ -167,4 +177,3 @@ def mine_info():
         "assigned": assigned
     }
     
-load_mines()
