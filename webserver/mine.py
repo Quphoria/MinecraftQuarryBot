@@ -120,11 +120,9 @@ class Mine:
             if status == "air" or status == "Nothing to dig here":
                 self.mined = True
                 return
-            elif status == "block":
+            elif status == "Unbreakable block":
                 self.stop()
                 return f"Mining stopped as unable to break block at {self.current}"
-            elif status == "no tool":
-                return status # make robot get new tool
             else:
                 self.stop()
                 return f"Mining stopped unknown status: {status} at {self.current}"
