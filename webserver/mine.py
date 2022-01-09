@@ -117,7 +117,7 @@ class Mine:
 
     def mine_response(self, success, status):
         if not success:
-            if status == "air":
+            if status == "air" or status == "Nothing to dig here":
                 self.mined = True
                 return
             elif status == "block":

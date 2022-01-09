@@ -366,12 +366,13 @@ class Robot:
             elif p == Program.Idle:
                 if self.pos is None:
                     print(f"[{self.bot_id}] idle, no position")
+                    return "z" # sleep
                 else:
                     wp = self.get_waypoint(self.home_wp_name(), show_error=False)
                     if wp is None: # fallback to Home if personal home missing
                         wp = self.get_waypoint("Home", show_error=False) 
                     if wp is None: # no home, do nothing
-                        return ""
+                        return "z" # sleep
                     # home position is 1 block above
                     home_position = wp.pos + Pos(0,1,0)
                     at_home = home_position == self.pos
@@ -389,7 +390,8 @@ class Robot:
                             self.next_program = Program.Dump
                     elif not at_home: # not at home
                         self.next_program = Program.Home
-
+                    else:
+                        return "z" # sleep
             else:
                 self.next_program = Program.Idle
         if not retry and self.current_program != self.next_program:
@@ -450,3 +452,4 @@ def robot_info():
 # b - break block below (automatically sends empty slots on block break)
 # e - empty slots
 # p - get position
+# z - sleep

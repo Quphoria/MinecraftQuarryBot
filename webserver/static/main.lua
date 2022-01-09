@@ -335,6 +335,8 @@ function Process_step()
         if pos ~= "no gps location" then
             Send_data(pos, "position")
         end
+    elseif c == "z" then -- sleep
+        os.sleep(30)
     else
         Send_data("Unknown Instruction: "..c, "log")
     end
