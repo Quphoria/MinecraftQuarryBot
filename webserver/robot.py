@@ -283,6 +283,8 @@ class Robot:
             steps = self.move_to_waypoint(self.home_wp_name(), height_offset=1)
             if steps is None:
                 steps = self.move_to_waypoint("Home", height_offset=1)
+            if not steps: # home not found or already at home
+                p == Program.Idle
         elif p == Program.Dump:
             steps = self.move_to_waypoint("Dump", height_offset=2)
             if steps:
