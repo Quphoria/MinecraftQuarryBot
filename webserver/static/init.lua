@@ -1,7 +1,7 @@
 local shell = require("shell")
 local os = require("os")
 
-local url = "http://uni.quphoria.co.uk:7777/static/"
+local url = "http://mc.quphoria.co.uk:7777/static/"
 
 -- Put the following in .shrc (Replace {URL} with the flask server)
 -- rm -rf /tmp/init.lua
