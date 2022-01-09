@@ -265,7 +265,7 @@ def mine_complete_api():
 
 @app.route("/api/mine_continue", methods=['POST', 'OPTIONS'])
 @auth.login_required
-def mine_complete_api():
+def mine_continue_api():
     if request and request.form:
         mine_id = request.form.get('mine_id')
         m = get_mine(mine_id)
