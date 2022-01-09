@@ -5,6 +5,7 @@ Bot_id = "UnknownBotID"
 Halt = false
 First_empty_slot = 1
 Direction = 0 -- assume facing north
+VerifiedDirection = false
 
 function Send_data(data, path)
     if path == nil then
@@ -275,9 +276,13 @@ function Process_step()
         else
             -- check that it was a valid direction before moving
             if Rotate_to_direction(d) then 
-                local s_x, s_y, s_z = Get_position()
                 local good = true
-                if s_x == "no gps location" then good = false end
+                local s_x, s_y, s_z = 0, 0, 0
+                -- only verify direction on the first move
+                if VerifiedDirection == false then
+                    s_x, s_y, s_z = Get_position()
+                    if s_x == "no gps location" then good = false end
+                end
 
                 if good then
                     if not turtle.forward() then
@@ -286,7 +291,7 @@ function Process_step()
                     end
                 end
 
-                if good then 
+                if good and VerifiedDirection == false then 
                     local x, y, z = Get_position()
                     if x ~= "no gps location" then 
                         -- check new position is correct
@@ -298,6 +303,7 @@ function Process_step()
                             Save_direction()
                             good = false
                         end
+                        VerifiedDirection = true
                     end
                 end
 

@@ -104,8 +104,8 @@ print("\nWaypoint: "..Name.."\n\n")
 
 local last_status = ""
 local i = 0
+local pos = Pos_string()
 while true do
-    local pos = Pos_string()
     if pos == "no gps location" then
         print("No GPS location")
         os.sleep(30)
@@ -115,6 +115,9 @@ while true do
     local s = pos..";"..powered..";"..Name
     -- send status if status changed or 30 seconds have elapsed
     if s ~= last_status or i >= 30 then
+        -- update position now
+        pos = Pos_string()
+        s = pos..";"..powered..";"..Name
         Send_data(s, "waypoint")
         last_status = s
         i = 0

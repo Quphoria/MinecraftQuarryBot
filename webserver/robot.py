@@ -11,6 +11,7 @@ from mine import get_mine, new_mine, get_free_mine, \
 robots = {}
 
 low_energy = 10000
+refuel_energy = 15000
 
 move_height = 3
 move_dist = 30
@@ -162,7 +163,7 @@ class Robot:
             moves.append(move + str(remaining_move))
         return moves
 
-    def move_relative(self, move: Pos, clearance_height=move_height, load_position=True):
+    def move_relative(self, move: Pos, clearance_height=move_height, load_position=True, do_refuel=True):
         steps = []
 
         # this is a very simple path
@@ -190,7 +191,8 @@ class Robot:
 
         steps += self.split_move("md", clearance_height - move.y)
         
-        steps.append("r") # refuel after move
+        if do_refuel:
+            steps.append("r") # refuel after move
         steps.append("s") # get status after move
         if load_position:
             steps.append("p") # get position after move complete
@@ -244,7 +246,10 @@ class Robot:
         rel_move = next_pos - self.pos
         if self.last_move_mine:
             # no need to use clearance if we are mining
-            steps = self.move_relative(rel_move, clearance_height=0, load_position=False)
+            steps = self.move_relative(rel_move, clearance_height=0, load_position=False, do_refuel=False)
+            if self.energy < refuel_energy:
+                # do a refuel if we are starting to get low on energy
+                steps.append("r") 
         else:
             steps = self.move_relative(rel_move, load_position=False)
         self.last_move_mine = True
