@@ -228,7 +228,7 @@ class Robot:
         w = self.get_waypoint(label)
         if w:
             return self.move_to_pos(w.pos + Pos(0, height_offset, 0))
-        self.next_program = Program.Error
+        return None
 
     def mine_status(self, msg):
         if self.get_mine() is None:
@@ -274,9 +274,9 @@ class Robot:
         elif p == Program.Home:
             # attempt to move to personal home
             # resort to shared home if not found
-            steps = self.move_to_waypoint(self.home_wp_name())
-            if not steps:
-                steps = self.move_to_waypoint("Home")
+            steps = self.move_to_waypoint(self.home_wp_name(), height_offset=1)
+            if steps is None:
+                steps = self.move_to_waypoint("Home", height_offset=1)
         elif p == Program.Dump:
             steps = self.move_to_waypoint("Dump", height_offset=1)
             if steps:
@@ -290,7 +290,7 @@ class Robot:
         elif p == Program.Error:
             steps = ["halt"] # halt if error
         elif p == Program.Initialise or p == Program.Idle:
-            steps = ["r", "s", "p", "e", "mn1"] # refuel, get status, position and empty slots
+            steps = ["r", "s", "p", "e"] # refuel, get status, position and empty slots
         self.steps = steps
 
     def error(self, e):
@@ -344,10 +344,10 @@ class Robot:
                     self.next_program = Program.Error
             elif p == Program.Initialise:
                 self.next_program = Program.Error
-                # if home_on_init:
-                #     self.next_program = Program.Home
-                # else:
-                #     self.next_program = Program.Dump
+                if home_on_init:
+                    self.next_program = Program.Home
+                else:
+                    self.next_program = Program.Dump
             elif p == Program.Home:
                 self.next_program = Program.Idle
             elif p == Program.Dump:
