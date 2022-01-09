@@ -1,10 +1,7 @@
 ## Installation
 
-## Robot
-
-![robot recipe](https://github.com/Quphoria/MinecraftQuarryBot/raw/opencomputers/robot.png)  
-
-Prepare OS disk with OpenOS
+Use an Advanced Mining Turtle  
+(Diamond Pickaxe and Ender Modem)
 
 Run the following command (Replace {URL} with the flask server)  
 ```sh
