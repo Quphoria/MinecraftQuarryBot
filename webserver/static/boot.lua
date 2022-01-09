@@ -1,15 +1,19 @@
-local io = require("io")
 
--- run this with wget http://{URL}/boot.lua /tmp/boot.lua && /tmp/boot.lua
+-- run this with:
+--     wget http://{URL}/boot.lua boot.lua
+--     boot.lua
+
 
 local url = "http://mc.quphoria.co.uk:7777/static/"
 
-local f = io.open("/home/.shrc", "w")
+local f = io.open("startup.lua", "w")
 if f then
-    f:write("rm -rf /tmp/init.lua\n")
-    f:write("wget "..url.."init.lua /tmp/init.lua && /tmp/init.lua\n")
-    f:write("echo 'Rebooting in 10 seconds\\nPress Ctrl+Alt+C to cancel'\n")
-    f:write("sleep 10s && reboot\n")
+    f:write('shell.run("rm init.lua")\n')
+    f:write('shell.run("wget '..url..'init.lua init.lua")\n')
+    f:write('shell.run("init.lua")\n')
+    f:write("print('Rebooting in 10 seconds\\nHold Ctrl+T to cancel')\n")
+    f:write("os.sleep(10)\n")
+    f:write('shell.run("reboot")\n')
     f:close()
     print("Bootloader successfully programmed")
     print("Please reboot the computer")

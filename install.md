@@ -5,5 +5,6 @@ Use an Advanced Mining Turtle
 
 Run the following command (Replace {URL} with the flask server)  
 ```sh
-wget http://{URL}/boot.lua /tmp/boot.lua && /tmp/boot.lua
+wget http://{URL}/boot.lua boot.lua
+boot.lua
 ```
