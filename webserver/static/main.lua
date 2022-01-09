@@ -9,21 +9,19 @@ local io = require("io")
 
 bot_id = "UnknownBotID"
 halt = false
-charging = false
-has_generator = false
+fueling = false
+has_generator = true
 first_empty_slot = 1
 
 function send_data(data, path)
     if path == nil then
         path = "test"
     end
-    local handle = internet.request("http://uni.quphoria.co.uk:7777/api/"..path, data, {RobotID = bot_id})
-    local result = ""
-    for chunk in handle do result = result..chunk end
-    local mt = getmetatable(handle)
-    local code, message, headers = mt.__index.response()
+    local h = http.request("http://uni.quphoria.co.uk:7777/api/"..path, data, {RobotID = bot_id})
+    local result = h.readAll()
+    local code = h.getResponseCode()
     if code ~= 200 then -- != in lua is ~=
-        print("response: "..tostring(code).." "..tostring(message))
+        print("response: "..tostring(code))
         print(result)
         return "error"
     end
@@ -34,20 +32,14 @@ function new_bot_id()
     bot_id = send_data("", "uuid")
     if bot_id == "error" then
         print("Unable to get bot id")
-        os.exit()
+        exit()
     end
-    local f = io.open("/home/bot_id", "w")
-    f:write(bot_id)
-    f:close()
+
+    os.setComputerLabel(bot_id)
 end
 
 function load_bot_id()
-    bot_id = ""
-    local f = io.open("/home/bot_id", "r")
-    if f then
-        bot_id = f:read("*l")
-        f:close()
-    end
+    bot_id = os.getComputerLabel()
     if bot_id == "" then
         new_bot_id()
     end
@@ -55,69 +47,46 @@ end
 
 function pos_string()
     local x, y, z = component.navigation.getPosition()
+    if not x then
+        send_data("no gps location", "error")
+        return "no gps location"
+    end
     return x..", "..y..", "..z
 end
 
-function find_waypoints() 
-    local waypoints = component.navigation.findWaypoints(10000)
-    local wps = pos_string() -- first waypoint is robot position
-    for k, waypoint in pairs(waypoints) do
-        if type(k) == "number" then
-            local pos = waypoint["position"]
-            local powered = waypoint["redstone"] >= 15 -- max redstone is 15
-            local label = waypoint["label"]
-            local wp = pos[1]..", "..pos[2]..", "..pos[3].."; "..tostring(powered).."; "..label
-            
-            wps = wps.."|"..wp
-        end
-    end
-    send_data(wps, "waypoints")
-end
-
 function refuel()
-    if not has_generator then return end
-
-    local last_slot = robot.select()
+    local last_slot = turtle.getSelectedSlot()
     -- select last slot for fuel
-    robot.select(16)
-    while component.generator.insert(1) do end
-    robot.select(last_slot)
+    turtle.select(16)
+    turtle.refuel()
+    turtle.select(last_slot)
 end
 
 function get_energy()
-    local energy = math.floor(computer.energy())
+    local energy = math.floor(turtle.getFuelLevel())
     send_data(tostring(energy), "energy")
 end
 
-function has_tool()
-    local durability, error = robot.durability()
-    -- tool exists as it has a durability
-    if durability ~= nil then return true end
-    send_data("Tool: "..error, "log")
-    -- no tool
-    if error == "no tool equipped" then return false end
-    -- tool cannot be damaged
-    return true
-end
-
 function mine_below()
+    local block = turle.inspectDown()
+    if not block then
+        send_data("fail: air", "swing")
+        return
+    end
+
     local success, status = robot.swingDown(sides.bottom)
     if success then
         send_data("ok: "..tostring(status), "swing")
         has_empty_slots()
     else
-        if not has_tool() then
-            send_data("fail: no tool", "swing")
-        else
-            send_data("fail: "..tostring(status), "swing")
-        end
+        send_data("fail: "..tostring(status), "swing")
     end
 end
 
 function has_empty_slots()
     for robot_slot=first_empty_slot,15 do -- don't check fuel slot
-        local robot_stack = component.inventory_controller.getStackInInternalSlot(robot_slot)
-        if robot_stack == nil then
+        local robot_stack = turtle.getItemCount(robot_slot)
+        if robot_stack == 0 then
             first_empty_slot = robot_slot
             send_data("available", "slots")
             return
@@ -126,42 +95,19 @@ function has_empty_slots()
     send_data("full", "slots")
 end
 
-function get_tool()
-    -- get temporary empty slot
-    has_empty_slots()
-    local temp_slot = first_empty_slot
-    robot.select(temp_slot)
-    if not component.inventory_controller.suckFromSlot(sides.bottom, 1, 1) then
-        send_data("Unable to get new tool", "error")
-        return
-    end
-    if not component.inventory_controller.equip() then
-        send_data("Unable to equip tool", "error")
-        return
-    end
-end
-
 function dump_items()
-    local inv_size = component.inventory_controller.getInventorySize(sides.bottom)
-    local last_slot = robot.select() -- preserve previous slot
+    local last_slot = turtle.getSelectedSlot() -- preserve previous slot
     for robot_slot=1,15 do -- don't transfer fuel slot
-        robot.select(robot_slot)
-        for slot=1,inv_size do
-            local robot_stack = component.inventory_controller.getStackInInternalSlot()
-            -- check items are in robot slot
-            if robot_stack == nil then break end
-            local other_stack = component.inventory_controller.getStackInSlot(sides.bottom, slot)
-            if other_stack == nil then
-                s, msg = component.inventory_controller.dropIntoSlot(sides.bottom, slot)
-                if s then
-                    send_data("Dump: ok", "log")
-                else
-                    send_data("Dump: fail:"..tostring(msg), "log")
-                end
+        local robot_stack = turtle.getItemCount(robot_slot)
+        if robot_stack > 0 then
+            turtle.select(robot_slot)
+            success = turtle.dropDown()
+            if not success then
+                send_data("dump chest full", "error")
             end
         end
     end
-    robot.select(last_slot)
+    turtle.select(last_slot)
     first_empty_slot = 1
     has_empty_slots()
 end

@@ -44,7 +44,6 @@ class Program(Enum):
     Initialise = auto()
     Error = auto()
     BreakBlock = auto()
-    GetTool = auto()
 
 @dataclass
 class Robot:
@@ -263,12 +262,7 @@ class Robot:
         success, status = msg.split(": ", 1)
         resp = self.get_mine().mine_response(success == "ok", status)
         if resp:
-            if resp == "no tool":
-                self.next_program = Program.Find
-                self.find_program = Program.GetTool
-                self.resume_program = self.current_program
-            else:
-                print(f"[{self.bot_id}] {resp}")
+            print(f"[{self.bot_id}] {resp}")
 
     def mine_block(self):
         if self.global_offset is None:
@@ -317,10 +311,6 @@ class Robot:
             steps = self.move_to_waypoint("BreakBlock")
             if steps:
                 steps.append("b") # break block below
-        elif p == Program.GetTool:
-            steps = self.move_to_waypoint("Tools", height_offset=1)
-            if steps:
-                steps.append("t")
         elif p == Program.Mine:
             steps = self.mine_block()
         elif p == Program.Error:
@@ -393,8 +383,6 @@ class Robot:
                     self.next_program = Program.Dump
             elif p == Program.Home:
                 self.next_program = Program.Idle
-            elif p == Program.GetTool:
-                self.next_program = self.resume_program
             elif p == Program.Dump:
                 if self.get_mine() is None:
                     if self.new_mine():
@@ -481,4 +469,3 @@ load_bots()
 # d - dump (automatically sends empty slots on finish)
 # b - break block below (automatically sends empty slots on block break)
 # e - empty slots
-# t - pickup tool
