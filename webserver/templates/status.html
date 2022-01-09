@@ -93,8 +93,8 @@
                 </p>
             </div>
             <template id="errorButton">
-                <button class="btn btn-outline-dark pb-2" data-toggle="modal" data-target="#errorModal">
-                    <span>⚠️</span>
+                <button class="btn btn-outline-dark px-2" data-toggle="modal" data-target="#errorModal">
+                    <span class="pb-1">⚠️</span>
                 </button>
             </template>
             <div class="tab-pane fade" id="robots" role="tabpanel" aria-labelledby="robots-tab">
@@ -123,10 +123,18 @@
             </div>
             <div class="tab-pane fade" id="mines" role="tabpanel" aria-labelledby="mines-tab">
                 <template id="completeButton">
-                    <form action="/api/mine_complete" method="post" target="dummyframe">
+                    <form class="d-inline" action="/api/mine_complete" method="post" target="dummyframe">
                         <input class="mine_id" name="mine_id" type="text" hidden></input>
-                        <button type="submit" class="btn btn-outline-success pb-2">
-                            <span>✔️</span>
+                        <button type="submit" class="btn btn-outline-success px-2">
+                            <span class="pb-1">✔️</span>
+                        </button>
+                    </form>
+                </template>
+                <template id="continueButton">
+                    <form class="d-inline" action="/api/mine_continue" method="post" target="dummyframe">
+                        <input class="mine_id" name="mine_id" type="text" hidden></input>
+                        <button type="submit" class="btn btn-outline-primary h-100">
+                            <i class="fas fa-play" style="font-size: 1.1rem"></i>
                         </button>
                     </form>
                 </template>
@@ -216,15 +224,25 @@
                 return button.wrap('<p/>').parent().html();
             }
             function completeButtonFormatter(value, row, index){
-                var button = $($("#completeButton").html());
-                button.find(".mine_id").attr("value", row.id);
+                var complete_button = $($("#completeButton").html());
+                complete_button.find(".mine_id").attr("value", row.id);
                 // hide button with this
                 // this makes all rows same height
                 if (row.complete || !row.stopped) {
-                    button.attr("style", "visibility: hidden!important");
+                    complete_button.attr("style", "visibility: hidden!important");
                 }
-                // get outer html by wrapping in <p> tags
-                return button.wrap('<p/>').parent().html();
+                var continue_button = $($("#continueButton").html());
+                continue_button.find(".mine_id").attr("value", row.id);
+                // hide button with this
+                // this makes all rows same height
+                if (row.complete || !row.stopped) {
+                    continue_button.attr("style", "visibility: hidden!important");
+                }
+
+                // get outer html by putting in wrapper
+                var wrapper = complete_button.wrap("<div>").parent();
+                wrapper.append(continue_button);
+                return wrapper.html();
             }
             $(function() {
                 $('#robot-table').bootstrapTable({url: "/api/robots_status.json"});

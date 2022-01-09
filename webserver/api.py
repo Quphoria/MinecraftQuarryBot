@@ -13,7 +13,7 @@ filtered_paths = ["/api/position","/api/waypoint","/api/swing",
     "/api/halt", "/api/slots", "/api/error",
     "/status", "/favicon.ico", "/api/robots_status.json",
     "/api/mines_status.json", "/api/waypoints_status.json",
-    "/api/mine_complete", "/api/clear_errors"]
+    "/api/mine_complete", "/api/mine_continue", "/api/clear_errors"]
 
 class LogFilter(logging.Filter):
     def filter(self, record):  
@@ -259,6 +259,20 @@ def mine_complete_api():
             if not m.stopped:
                 return gen_resp(500, "mine not stopped")
             m.complete = True
+            m.save()
+            return gen_resp(200, "")
+    return gen_resp(400, "")
+
+@app.route("/api/mine_continue", methods=['POST', 'OPTIONS'])
+@auth.login_required
+def mine_complete_api():
+    if request and request.form:
+        mine_id = request.form.get('mine_id')
+        m = get_mine(mine_id)
+        if m:
+            if m.complete:
+                return gen_resp(500, "mine complete")
+            m.stopped = False
             m.save()
             return gen_resp(200, "")
     return gen_resp(400, "")
