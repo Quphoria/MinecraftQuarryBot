@@ -459,7 +459,7 @@ def robot_status():
 def robot_info():
     total = len(robots)
     online = len(list(bot.bot_id for bot in robots.values() if bot.connected))
-    active = len(list(bot.bot_id for bot in robots.values() if not bot.paused_at_home))
+    active = len(list(bot.bot_id for bot in robots.values() if bot.connected and not bot.paused_at_home))
     errors = len(list(bot.bot_id for bot in robots.values() if len(bot.errors)))
     return {
         "total": total,
