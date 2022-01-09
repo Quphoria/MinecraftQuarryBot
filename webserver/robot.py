@@ -374,7 +374,8 @@ class Robot:
                         return ""
                     # home position is 1 block above
                     home_position = wp.pos + Pos(0,1,0)
-                    self.paused_at_home = wp and home_position == self.pos and wp.powered and wp.is_connected()
+                    at_home = home_position == self.pos
+                    self.paused_at_home = wp and at_home and wp.powered and wp.is_connected()
                     if self.paused_at_home:
                         # if is at home waypoint and wp is powered
                         # stay at home
@@ -386,7 +387,7 @@ class Robot:
                         else:
                             # dump items if no empty slots
                             self.next_program = Program.Dump
-                    else: # not at home
+                    elif not at_home: # not at home
                         self.next_program = Program.Home
 
             else:
