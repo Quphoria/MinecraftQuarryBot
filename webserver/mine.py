@@ -158,7 +158,7 @@ def get_free_mine(pos: Pos) -> Mine:
     if pos is None:
         return None
     try:
-        return min((mine for mine in mines.values() if not mine.assigned),
+        return min((mine for mine in mines.values() if not (mine.assigned or mine.stopped or mine.complete)),
             key=lambda mine: abs(mine.corner1 - pos))
     except (ValueError, StopIteration): # no free mines
         return None
