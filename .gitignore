@@ -3,5 +3,6 @@ __pycache__
 env/
 mines/
 bots/
+waypoints/
 
 *.secret

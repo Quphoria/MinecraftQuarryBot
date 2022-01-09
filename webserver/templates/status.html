@@ -208,6 +208,7 @@
                 }
                 
                 var modal = $(this)
+                $('#error-table').bootstrapTable("destroy");
                 $('#error-table').bootstrapTable({data: errors_numbered});
 
                 modal.find('.bot_id').text(bot_id);
