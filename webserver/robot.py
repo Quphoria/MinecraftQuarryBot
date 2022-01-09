@@ -316,11 +316,7 @@ class Robot:
         elif p == Program.Error:
             steps = ["halt"] # halt if error
         elif p == Program.Initialise or p == Program.Idle:
-            # scan for work from waypoints while waiting
-            steps = []
-            if do_refuel:
-                steps.append("r") # refuel
-            steps += ["s", "w", "e"] # get status, waypoints and empty slots when started
+            steps = ["r", "s", "p", "e", "mn1"] # refuel, get status, position and empty slots
         self.steps = steps
 
     def error(self, e):
@@ -377,10 +373,11 @@ class Robot:
                     print(f"[{self.bot_id}] is not charging!")
                     self.next_program = Program.Error
             elif p == Program.Initialise:
-                if home_on_init:
-                    self.next_program = Program.Home
-                else:
-                    self.next_program = Program.Dump
+                self.next_program = Program.Error
+                # if home_on_init:
+                #     self.next_program = Program.Home
+                # else:
+                #     self.next_program = Program.Dump
             elif p == Program.Home:
                 self.next_program = Program.Idle
             elif p == Program.Dump:
@@ -406,7 +403,6 @@ class Robot:
                     else:
                         # dump items if no empty slots
                         self.next_program = Program.Dump
-                return self.next_step(retry=True, renew=True)
             else:
                 self.next_program = Program.Idle
         if not retry and self.current_program != self.next_program:
@@ -463,9 +459,9 @@ load_bots()
 # - n,e,s,w,u,d (direction)
 # - ## number of spaces to move
 # s - status [energy]
-# w - waypoints
 # r - refuel
-# c - charge
+# f - get fuel
 # d - dump (automatically sends empty slots on finish)
 # b - break block below (automatically sends empty slots on block break)
 # e - empty slots
+# p - get position

@@ -1,23 +1,14 @@
-local internet = require("internet")
-local shell = require("shell")
-local os = require("os")
-local robot = require("robot")
-local component = require("component")
-local sides = require("sides")
-local computer = require("computer")
-local io = require("io")
 
-bot_id = "UnknownBotID"
-halt = false
-fueling = false
-has_generator = true
-first_empty_slot = 1
+Bot_id = "UnknownBotID"
+Halt = false
+First_empty_slot = 1
+Direction = 0 -- assume facing north
 
-function send_data(data, path)
+function Send_data(data, path)
     if path == nil then
         path = "test"
     end
-    local h = http.request("http://uni.quphoria.co.uk:7777/api/"..path, data, {RobotID = bot_id})
+    local h = http.post("http://uni.quphoria.co.uk:7777/api/"..path, data, {RobotID = Bot_id})
     local result = h.readAll()
     local code = h.getResponseCode()
     if code ~= 200 then -- != in lua is ~=
@@ -28,233 +19,327 @@ function send_data(data, path)
     return result
 end
 
-function new_bot_id()
-    bot_id = send_data("", "uuid")
-    if bot_id == "error" then
+function New_bot_id()
+    Bot_id = Send_data("", "uuid")
+    if Bot_id == "error" then
         print("Unable to get bot id")
-        exit()
+        error("Unable to get bot id")
     end
 
-    os.setComputerLabel(bot_id)
+    os.setComputerLabel(Bot_id)
 end
 
-function load_bot_id()
-    bot_id = os.getComputerLabel()
-    if bot_id == "" then
-        new_bot_id()
+function Load_bot_id()
+    Bot_id = os.getComputerLabel()
+    if Bot_id == "" or not Bot_id then
+        New_bot_id()
     end
 end
 
-function pos_string()
-    local x, y, z = component.navigation.getPosition()
+function Save_direction()
+    local f = io.open("direction", "w")
+    if f then
+        f:write(tostring(Direction))
+        f:close()
+    else
+        Send_data("error saving direction", "error")
+    end
+end
+
+function Load_direction()
+    Direction = 0
+    local f = io.open("direction", "r")
+    if f then
+        Direction = tonumber(f:read("*l"))
+        f:close()
+    else
+        print("Unable to find direction file")
+    end
+    if not Direction then
+        Direction = 0 -- default to north if null
+    end
+    print("Loaded direction: "..Direction)
+end
+
+function Get_position()
+    local x, y, z = gps.locate()
     if not x then
-        send_data("no gps location", "error")
+        Send_data("no gps location", "error")
         return "no gps location"
     end
+    return x, y, z
+end
+
+function Pos_string()
+    x, y, z = Get_position()
+    if x == "no gps location" then return x end
     return x..", "..y..", "..z
 end
 
-function refuel()
+function Refuel()
     local last_slot = turtle.getSelectedSlot()
     -- select last slot for fuel
     turtle.select(16)
-    turtle.refuel()
+    local last_level = turtle.getFuelLevel()
+    while last_level < turtle.getFuelLimit() do
+        -- refuel 1 item at a time to prevent wasting fuel
+        turtle.refuel(1) 
+        local level = turtle.getFuelLevel()
+        -- fuel level didn't increase stop refueling
+        if level <= last_level then break end
+        last_level = level
+    end
     turtle.select(last_slot)
 end
 
-function get_energy()
-    local energy = math.floor(turtle.getFuelLevel())
-    send_data(tostring(energy), "energy")
+function GetFuel()
+    local last_slot = turtle.getSelectedSlot()
+    -- select last slot for fuel
+    turtle.select(16)
+    while turtle.getFuelLevel() < turtle.getFuelLimit() do
+        Refuel()
+        if not turtle.suckDown() then
+            Send_data("No fuel available", "error")
+            break
+        end
+    end
+    turtle.select(last_slot)
 end
 
-function mine_below()
-    local block = turle.inspectDown()
+function Get_energy()
+    local energy = math.floor(turtle.getFuelLevel())
+    Send_data(tostring(energy), "energy")
+end
+
+function Mine_below()
+    local block = turtle.inspectDown()
     if not block then
-        send_data("fail: air", "swing")
+        Send_data("fail: air", "swing")
         return
     end
 
-    local success, status = robot.swingDown(sides.bottom)
+    local success, status = turtle.digDown("left")
     if success then
-        send_data("ok: "..tostring(status), "swing")
-        has_empty_slots()
+        Send_data("ok: "..tostring(status), "swing")
+        Has_empty_slots()
     else
-        send_data("fail: "..tostring(status), "swing")
+        Send_data("fail: "..tostring(status), "swing")
     end
 end
 
-function has_empty_slots()
-    for robot_slot=first_empty_slot,15 do -- don't check fuel slot
+function Has_empty_slots()
+    for robot_slot=First_empty_slot,15 do -- don't check fuel slot
         local robot_stack = turtle.getItemCount(robot_slot)
         if robot_stack == 0 then
-            first_empty_slot = robot_slot
-            send_data("available", "slots")
+            First_empty_slot = robot_slot
+            Send_data("available", "slots")
             return
         end
     end
-    send_data("full", "slots")
+    Send_data("full", "slots")
 end
 
-function dump_items()
+function Dump_items()
     local last_slot = turtle.getSelectedSlot() -- preserve previous slot
     for robot_slot=1,15 do -- don't transfer fuel slot
         local robot_stack = turtle.getItemCount(robot_slot)
         if robot_stack > 0 then
             turtle.select(robot_slot)
-            success = turtle.dropDown()
+            local success = turtle.dropDown()
             if not success then
-                send_data("dump chest full", "error")
+                Send_data("dump chest full", "error")
             end
         end
     end
     turtle.select(last_slot)
-    first_empty_slot = 1
-    has_empty_slots()
+    First_empty_slot = 1
+    Has_empty_slots()
 end
 
-function get_char(s, i)
+function Get_char(s, i)
     return s:sub(i, i)
 end
 
-rot_table = { -- use [] to eval table key expression
-    n = {
-        [sides.east] = "l",
-        [sides.south] = "a",
-        [sides.west] = "r",
-        [sides.north] = ""
-    },
-    e = {
-        [sides.south] = "l",
-        [sides.west] = "a",
-        [sides.north] = "r",
-        [sides.east] = ""
-    },
-    s = {
-        [sides.west] = "l",
-        [sides.north] = "a",
-        [sides.east] = "r",
-        [sides.south] = ""
-    },
-    w = {
-        [sides.north] = "l",
-        [sides.east] = "a",
-        [sides.south] = "r",
-        [sides.west] = ""
-    }
+-- rotation codes
+-- 0 - north
+-- 1 - east
+-- 2 - south
+-- 3 - west
+
+Rot_table = { -- use [] to eval table key expression
+    -- Rot_table [desired direction] [current direction]
+    n = {"", "l", "a", "r"},
+    e = {"r", "", "l", "a"},
+    s = {"a", "r", "", "l"},
+    w = {"l", "a", "r", ""}
 }
 
-function rotate_to_direction(d)
-    local facing = component.navigation.getFacing()
+Rot_codes = {
+    n = 0,
+    e = 1,
+    s = 2,
+    w = 3
+}
 
-    rot_dir = rot_table[d]
+function Rotate_to_direction(d)
+    local rot_dir = Rot_table[d]
     if not rot_dir then
-        send_data("Unknown direction: "..d, "log")
+        Send_data("Unknown direction: "..d, "log")
         return false
     end
-    rotation = rot_dir[facing]
+    local rotation = rot_dir[Direction+1] -- lua table start at 1
     if rotation == "l" then
-        if not robot.turnLeft() then -- vscode plugin is wrong, method is turnLeft
-            send_data("turning left", "error")
+        if not turtle.turnLeft() then -- vscode plugin is wrong, method is turnLeft
+            Send_data("turning left", "error")
+            return false
         end
     elseif rotation == "a" then
-        if not robot.turnAround() then
-            send_data("turning around", "error")
+        for i=1,2 do
+            if not turtle.turnLeft() then
+                Send_data("turning around", "error")
+                return false
+            end
         end
     elseif rotation == "r" then
-        if not robot.turnRight() then -- vscode plugin is wrong, method is turnRight
-            send_data("turning right", "error")
+        if not turtle.turnRight() then -- vscode plugin is wrong, method is turnRight
+            Send_data("turning right", "error")
+            return false
         end
     end
+    Direction = Rot_codes[d]
+    Save_direction()
     return true
 end
 
-function process_step()
-    local instruction = send_data("", "step")
+function DetermineDirection(old_x, old_z, x, z)
+    local moved_dir = 0
+    local dx = x - old_x
+    local dz = z - old_z
+    if dx > 0 then -- east
+        moved_dir = 1
+    elseif dz > 0 then -- south
+        moved_dir = 2
+    elseif dx < 0 then -- west
+        moved_dir = 3
+    elseif dz < 0 then -- north
+        moved_dir = 0
+    else
+        Send_data("Unable to match direction moved ["..dx..","..dz.."]", "error")
+    end
+    return moved_dir
+end
+
+function Process_step()
+    local instruction = Send_data("", "step")
     if instruction ~= "" then
         print("INSTRUCTION: "..instruction)
         -- send_data("INSTRUCTION: "..instruction, "log")
     end
     
     if instruction == "error" or instruction == "halt" then
-        halt = true
+        Halt = true
         return
     end
 
     if instruction == "" then return end -- waut for instruction
 
-    charging = false
-
-    c = get_char(instruction, 1)
+    local c = Get_char(instruction, 1)
     if c == "m" then -- move
-        d = get_char(instruction, 2)
-        distance = tonumber(instruction:sub(3)) -- parse remaining as string
+        local d = Get_char(instruction, 2)
+        local distance = tonumber(instruction:sub(3)) -- parse remaining as string
         if distance == nil then
-            send_data("invalid distance: "..s:sub(3), "error")
+            Send_data("invalid distance: "..s:sub(3), "error")
         elseif d == "u" then
             for i=1,distance do
-                if not robot.up() then
-                    send_data("moving up "..tostring(i).." ["..instruction.."]", "error")
+                if not turtle.up() then
+                    Send_data("moving up "..tostring(i).." ["..instruction.."]", "error")
                     break
                 end
             end
         elseif d == "d" then
             for i=1,distance do
-                if not robot.down() then
-                    send_data("moving down "..tostring(i).." ["..instruction.."]", "error")
+                if not turtle.down() then
+                    Send_data("moving down "..tostring(i).." ["..instruction.."]", "error")
                     break
                 end
             end
         else
             -- check that it was a valid direction before moving
-            if rotate_to_direction(d) then 
-                for i=1,distance do
-                    if not robot.forward() then
-                        send_data("moving forward "..tostring(i).." ["..instruction.."]", "error")
-                        break
+            if Rotate_to_direction(d) then 
+                local s_x, s_y, s_z = Get_position()
+                local good = true
+                if s_x == "no gps location" then good = false end
+
+                if good then
+                    if not turtle.forward() then
+                        Send_data("moving forward 1 ["..instruction.."]", "error")
+                        good = false
+                    end
+                end
+
+                if good then 
+                    local x, y, z = Get_position()
+                    if x ~= "no gps location" then 
+                        -- check new position is correct
+                        local moved_dir = DetermineDirection(s_x, s_z, x, z)
+                        if moved_dir ~= Direction then
+                            Send_data("Turtle moved in an unexpected direction", "error")
+                            -- update direction
+                            Direction = moved_dir
+                            Save_direction()
+                            good = false
+                        end
+                    end
+                end
+
+                if distance > 1 and good then
+                    for i=1,distance do
+                        if not turtle.forward() then
+                            Send_data("moving forward "..tostring(i).." ["..instruction.."]", "error")
+                            break
+                        end
                     end
                 end
             end
         end
     elseif c == "s" then -- status
-        get_energy()
-    elseif c == "w" then -- waypoints
-        find_waypoints()
+        Get_energy()
     elseif c == "r" then -- refuel
-        refuel()
-    elseif c == "c" then -- charging
-        charging = true
+        Refuel()
+    elseif c == "f" then -- get fuel
+        Send_data("f not implemented", "error")
     elseif c == "d" then -- dump
-        dump_items()
+        Dump_items()
     elseif c == "b" then -- break block below
-        mine_below()
+        Mine_below()
     elseif c == "e" then -- empty slots
-        has_empty_slots()
-    elseif c == "t" then -- get tool
-        get_tool()
+        Has_empty_slots()
+    elseif c == "p" then -- get position
+        local pos = Pos_string()
+        if pos ~= "no gps location" then
+            Send_data(pos, "position")
+        end
     else
-        send_data("Unknown Instruction: "..c, "log")
+        Send_data("Unknown Instruction: "..c, "log")
     end
 end
 
-robot.select(1) -- select first slot on load
+turtle.select(1) -- select first slot on load
 
-load_bot_id()
+Load_bot_id()
+Load_direction()
 
-print("Hello, my name is: "..bot_id)
+print("Hello, my name is: "..Bot_id)
 
-send_data("", "load") -- notify server that we just turned on
+Send_data("", "load") -- notify server that we just turned on
 
-refuel() -- refuel ASAP to get power
+Refuel() -- refuel ASAP to get power
 
-while not halt do
-    process_step()
-    if charging then
-        os.sleep(1)
-        get_energy()
-    end
+while not Halt do
+    Process_step()
 end
 
-send_data("", "halt") -- notify server that we just halted
+Send_data("", "halt") -- notify server that we just halted
 
 -- send_data(pos_string(), "position")
 -- robot.up()

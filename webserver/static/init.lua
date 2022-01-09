@@ -12,4 +12,5 @@ while true do
     shell.run("wget "..url.."main.lua main.lua")
     shell.run("main.lua")
     shell.run("rm main.lua")
+    break
 end

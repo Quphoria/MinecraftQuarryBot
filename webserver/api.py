@@ -115,17 +115,17 @@ def position_api():
         return gen_resp(500, "error")
 
 
-@app.route("/api/waypoints", methods=['POST', 'OPTIONS'])
-def waypoints_api():
-    try:
-        r = get_robot(bot_id())
-        d = request.get_data().decode()
-        r.set_waypoints(d)
-        # print(f"[{bot_id()}] Waypoints: {d}")
-        return gen_resp(200, "")
-    except Exception as ex:
-        raise ex
-        return gen_resp(500, "error")
+# @app.route("/api/waypoints", methods=['POST', 'OPTIONS'])
+# def waypoints_api():
+#     try:
+#         r = get_robot(bot_id())
+#         d = request.get_data().decode()
+#         r.set_waypoints(d)
+#         # print(f"[{bot_id()}] Waypoints: {d}")
+#         return gen_resp(200, "")
+#     except Exception as ex:
+#         raise ex
+#         return gen_resp(500, "error")
 
 @app.route("/api/swing", methods=['POST', 'OPTIONS'])
 def swing_api():
@@ -137,16 +137,6 @@ def swing_api():
         return gen_resp(200, "")
     except Exception as ex:
         raise ex
-        return gen_resp(500, "error")
-
-@app.route("/api/refuel", methods=['POST', 'OPTIONS'])
-def refuel_api():
-    try:
-        r = get_robot(bot_id())
-        d = request.get_data().decode()
-        print(f"[{bot_id()}] Refuel: {d}")
-        return gen_resp(200, "")
-    except:
         return gen_resp(500, "error")
 
 @app.route("/api/energy", methods=['POST', 'OPTIONS'])
