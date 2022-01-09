@@ -1,4 +1,6 @@
 
+Url = "http://uni.quphoria.co.uk:7777/api/"
+
 Bot_id = "UnknownBotID"
 Halt = false
 First_empty_slot = 1
@@ -8,7 +10,10 @@ function Send_data(data, path)
     if path == nil then
         path = "test"
     end
-    local h = http.post("http://uni.quphoria.co.uk:7777/api/"..path, data, {RobotID = Bot_id})
+    local h = http.post(Url..path, data, {RobotID = Bot_id})
+    if not h then
+        error("HTTP request failed to "..Url..path)
+    end
     local result = h.readAll()
     local code = h.getResponseCode()
     if code ~= 200 then -- != in lua is ~=
@@ -22,7 +27,6 @@ end
 function New_bot_id()
     Bot_id = Send_data("", "uuid")
     if Bot_id == "error" then
-        print("Unable to get bot id")
         error("Unable to get bot id")
     end
 

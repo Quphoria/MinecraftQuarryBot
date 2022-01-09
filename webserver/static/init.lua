@@ -9,7 +9,11 @@ print("Starting program, hold Ctrl+T to cancel")
 
 while true do
     os.sleep(2)
-    shell.run("wget "..url.."main.lua main.lua")
+    if turtle then
+        shell.run("wget "..url.."main.lua main.lua")
+    else
+        shell.run("wget "..url.."waypoint.lua main.lua")
+    end
     shell.run("main.lua")
     shell.run("rm main.lua")
     break

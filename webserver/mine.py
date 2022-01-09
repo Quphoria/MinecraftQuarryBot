@@ -1,7 +1,7 @@
 from dataclasses import dataclass, InitVar, field
 import os, sys, json
 
-from mc import Pos, Waypoint
+from mc import Pos
 
 mines = {}
 

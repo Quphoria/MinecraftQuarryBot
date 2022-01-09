@@ -4,7 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 import json
 
-from robot import get_robot, gen_uuid, robot_status, mines_status, get_mine, robot_info, mine_info
+from robot import get_robot, gen_uuid, robot_status, mines_status, get_mine, robot_info, mine_info, update_waypoint
 
 filtered_paths = ["/api/position","/api/waypoint","/api/swing",
     "/api/refuel","/api/energy","/api/log","/api/step", "/api/load",
@@ -55,9 +55,14 @@ def gen_resp(status, data):
     return response
 
 def bot_id():
-    robot_id = request.headers["RobotID"]
+    robot_id = request.headers.get("RobotID", None)
     assert robot_id, "No Bot ID!"
     return robot_id
+
+def waypoint_id():
+    wp_id = request.headers.get("WaypointID", None)
+    assert wp_id, "No Waypoint ID!"
+    return wp_id
 
 @app.route("/")
 def hello_world():
@@ -114,6 +119,16 @@ def position_api():
     except:
         return gen_resp(500, "error")
 
+@app.route("/api/waypoint", methods=['POST', 'OPTIONS'])
+def waypoint_api():
+    try:
+        d = request.get_data().decode()
+        update_waypoint(waypoint_id(), d)
+        print(f"[{waypoint_id()}] Waypoint: {d}")
+        return gen_resp(200, "")
+    except Exception as ex:
+        raise ex
+        return gen_resp(500, "error")
 
 # @app.route("/api/waypoints", methods=['POST', 'OPTIONS'])
 # def waypoints_api():

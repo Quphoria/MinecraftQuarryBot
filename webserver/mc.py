@@ -44,9 +44,3 @@ class Pos:
 
     def to_str(self) -> str:
         return f"{self.x}, {self.y}, {self.z}"
-
-@dataclass
-class Waypoint:
-    pos: Pos
-    label: str
-    powered: bool

@@ -2,7 +2,8 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 import math, re, sys, os, secrets, time, json
 
-from mc import Pos, Waypoint
+from mc import Pos
+from waypoint import Waypoint, get_waypoint, update_waypoint, get_waypoints_by_label
 from mine import get_mine, new_mine, get_free_mine, load_mines, mines_status, mine_info
 
 robots = {}
@@ -50,9 +51,7 @@ class Robot:
     bot_id: str
     pos: Pos = None
     from_save: bool = False
-    global_offset: Pos = None
     energy: int = 0
-    waypoints: list[Waypoint] = field(default_factory=lambda: [])
     current_program: Program = Program.Idle
     next_program: Program = Program.Idle
     find_program: Program = Program.Home
@@ -113,20 +112,18 @@ class Robot:
     def loaded(self):
         self.current_program = Program.Idle
         self.next_program = Program.Initialise # home robot on load
-        self.global_offset = None # dont assume position
+        self.pos = None # dont assume position
         self.connected = True
 
-    def get_global_pos(self):
-        if self.pos is None or self.global_offset is None:
-            return None
-        return self.pos - self.global_offset
-
     def set_position(self, s):
-        self.pos = Pos.from_str(s)
+        pos = Pos.from_str(s)
+        if self.pos is None:
+            print(f"[{self.bot_id}] is at {pos}")
+        self.pos = pos
 
     def new_mine(self) -> bool:
         # returns True if a mine was loaded
-        mine = get_free_mine(self.get_global_pos())
+        mine = get_free_mine(self.pos)
         if mine:
             mine.assigned = True
             self.mine_id = mine.mine_id
@@ -143,42 +140,7 @@ class Robot:
             self.save()
             return None
         return mine
-
-    def print_global_pos(self):
-        print(f"[{self.bot_id}] is at {self.get_global_pos()}")
-
-    def set_waypoints(self, s):
-        self.search_complete = True
-        pos, *waypoints = s.split("|")
-        self.pos = Pos.from_str(pos)
-        self.waypoints = []
-        for waypoint in waypoints:
-            p, powered, label = waypoint.split("; ", 2)
-            p = Pos.from_str(p)
-            powered = powered == "true"
-            self.waypoints.append(Waypoint(p, label, powered))
-            # always updaate global offset in case robot position breaks
-            if re.search(r"^XYZ: (-?\d+(.\d+)?, ){2}(-?\d+(.\d+)?)$", label):
-                waypoint_global = label.split(": ", 1)[1]
-                old_offset = self.global_offset
-                self.global_offset = self.pos + p - Pos.from_str(waypoint_global)
-                if old_offset != self.global_offset:
-                    self.print_global_pos()
-        
-        # create mines from waypoints
-        for waypoint in self.waypoints:
-            if not waypoint.label.startswith("Mine: "):
-                continue
-            mine_id = waypoint.label.split("Mine: ", 1)[1]
-            mine = get_mine(mine_id)
-            # we need a global offset to calculate mine coords
-            if not mine and not self.global_offset is None:
-                mine_points = list(wp.pos for wp in self.waypoints if wp.label == waypoint.label)
-                if len(mine_points) == 2:
-                    w1 = self.get_global_pos() + mine_points[0]
-                    w2 = self.get_global_pos() + mine_points[1]
-                    mine = new_mine(mine_id, w1, w2)
-
+     
     def set_energy(self, s):
         self.energy = int(s)
         if self.energy < low_energy and self.current_program != Program.Recharge:
@@ -202,7 +164,7 @@ class Robot:
             moves.append(move + str(remaining_move))
         return moves
 
-    def move_relative(self, move: Pos, clearance_height=recharge_height, load_waypoints=True):
+    def move_relative(self, move: Pos, clearance_height=recharge_height, load_position=True):
         steps = []
 
         # this is a very simple path
@@ -235,16 +197,28 @@ class Robot:
             if do_refuel:
                 steps.append("r") # refuel after move
             steps.append("s") # get status after move
-        if load_waypoints:
-            steps.append("w") # get waypoints after move complete
+        if load_position:
+            steps.append("p") # get position after move complete
         else:
             self.pos += move # position not updated from move
         self.last_move_mine = False
         return steps
 
+    def move_to_pos(self, pos: Pos, clearance_height=recharge_height, load_position=True):
+        if self.pos is None:
+            print(f"[{self.bot_id}] Position unknown")
+            self.next_program = Program.Error
+            return []
+        
+        move = pos - self.pos
+        return self.move_relative(move, clearance_height=clearance_height, load_position=load_position)
+
     def get_waypoint(self, label):
+        if self.pos is None:
+            print(f"[{self.bot_id}] Position unknown")
+            return None
         try:
-            w = min((w for w in self.waypoints if w.label == label), key=lambda w: abs(w.pos))
+            w = min(get_waypoints_by_label(label), key=lambda w: abs(w.pos - self.pos))
         except ValueError: # empty list
             print(f"[{self.bot_id}] Unable to find {label} nearby!!!")
             return None
@@ -253,7 +227,7 @@ class Robot:
     def move_to_waypoint(self, label, height_offset=0):
         w = self.get_waypoint(label)
         if w:
-            return self.move_relative(w.pos + Pos(0, height_offset, 0))
+            return self.move_to_pos(w.pos + Pos(0, height_offset, 0))
         self.next_program = Program.Error
 
     def mine_status(self, msg):
@@ -265,18 +239,18 @@ class Robot:
             print(f"[{self.bot_id}] {resp}")
 
     def mine_block(self):
-        if self.global_offset is None:
+        if self.pos is None:
             return
         if self.get_mine() is None:
             return
         # robot mines from block above
         next_pos = self.get_mine().next_block() + Pos(0, 1, 0)
-        rel_move = next_pos - self.get_global_pos()
+        rel_move = next_pos - self.pos
         if self.last_move_mine:
             # no need to use clearance if we are mining
-            steps = self.move_relative(rel_move, clearance_height=0, load_waypoints=False)
+            steps = self.move_relative(rel_move, clearance_height=0, load_position=False)
         else:
-            steps = self.move_relative(rel_move, load_waypoints=False)
+            steps = self.move_relative(rel_move, load_position=False)
         self.last_move_mine = True
         steps.append("b") # break block below robot
         # print(steps)
@@ -349,11 +323,7 @@ class Robot:
         p = self.current_program
         if p == self.next_program:
             if p == Program.Mine:
-                # mining requireds a global offset
-                if self.global_offset is None:
-                    self.next_program = Program.Find
-                    self.find_program = Program.Home
-                elif self.get_mine() is None or not self.empty_slots:
+                if self.get_mine() is None or not self.empty_slots:
                     # dump if mine stopped or no more slots
                     self.next_program = Program.Find
                     self.find_program = Program.Dump
