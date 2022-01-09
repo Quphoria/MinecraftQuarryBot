@@ -71,7 +71,7 @@ function Get_position()
 end
 
 function Pos_string()
-    x, y, z = Get_position()
+    local x, y, z = Get_position()
     if x == "no gps location" then return x end
     return x..", "..y..", "..z
 end
@@ -248,7 +248,7 @@ function Process_step()
         local d = Get_char(instruction, 2)
         local distance = tonumber(instruction:sub(3)) -- parse remaining as string
         if distance == nil then
-            Send_data("invalid distance: "..s:sub(3), "error")
+            Send_data("invalid distance: "..instruction:sub(3), "error")
         elseif d == "u" then
             for i=1,distance do
                 if not turtle.up() then
