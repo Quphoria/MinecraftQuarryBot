@@ -295,7 +295,7 @@ class Robot:
             steps = self.mine_block()
         elif p == Program.Error:
             steps = ["halt"] # halt if error
-        elif p == Program.Initialise or p == Program.Idle:
+        elif p == Program.Initialise:
             steps = ["r", "s", "p", "e"] # refuel, get status, position and empty slots
         self.steps = steps
 
