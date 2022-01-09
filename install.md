@@ -2,6 +2,8 @@
 
 ## Robot
 
+![robot recipe](https://github.com/Quphoria/MinecraftQuarryBot/raw/opencomputers/robot.png)  
+
 Prepare OS disk with OpenOS
 
 Put the following into /home/.shrc (Replace {URL} with the flask server)  
