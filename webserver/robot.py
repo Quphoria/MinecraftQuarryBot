@@ -203,7 +203,7 @@ class Robot:
             moves.append(move + str(remaining_move))
         return moves
 
-    def move_relative(self, pos: Pos, clearance_height=recharge_height, load_waypoints=True):
+    def move_relative(self, move: Pos, clearance_height=recharge_height, load_waypoints=True):
         steps = []
 
         # this is a very simple path
@@ -211,27 +211,26 @@ class Robot:
         # goes north/south, then east/west
         # then down to the charger
 
-        if pos.x == 0 and pos.z == 0:
-            if pos.y >= 0:
-                steps += self.split_move("mu", pos.y)
-            else:
-                steps += self.split_move("md", -pos.y)
-        else: # only use clearance height if the x or z coords change
-            if pos.y > 0:
-                clearance_height += pos.y
-            steps += self.split_move("mu", clearance_height)
+        # only use clearance height if x + z change by more than 1 block
+        if abs(move.x) + abs(move.z) <= 1:
+            clearance_height = 0
 
-            if pos.z > 0:
-                steps += self.split_move("ms", abs(pos.z))
-            else:
-                steps += self.split_move("mn", abs(pos.z))  # north is negative z
-            
-            if pos.x > 0:
-                steps += self.split_move("me", abs(pos.x))
-            else:
-                steps += self.split_move("mw", abs(pos.x))  # west is negative x
+        if move.y > 0:
+            clearance_height += move.y
+        steps += self.split_move("mu", clearance_height)
 
-            steps += self.split_move("md", clearance_height - pos.y)
+        if move.z > 0:
+            steps += self.split_move("ms", abs(move.z))
+        else:
+            steps += self.split_move("mn", abs(move.z))  # north is negative z
+        
+        if move.x > 0:
+            steps += self.split_move("me", abs(move.x))
+        else:
+            steps += self.split_move("mw", abs(move.x))  # west is negative x
+
+        steps += self.split_move("md", clearance_height - move.y)
+        
         if len(steps) < 2 or steps[-1] != "s":
             # don't add refuel and status if last step was a status
             if do_refuel:
@@ -240,7 +239,7 @@ class Robot:
         if load_waypoints:
             steps.append("w") # get waypoints after move complete
         else:
-            self.pos += pos # position not updated from move
+            self.pos += move # position not updated from move
         self.last_move_mine = False
         return steps
 
@@ -279,8 +278,8 @@ class Robot:
         # robot mines from block above
         next_pos = self.get_mine().next_block() + Pos(0, 1, 0)
         rel_move = next_pos - self.get_global_pos()
-        if abs(rel_move) <= 1 or self.last_move_mine:
-            # no need to use clearance if we are only moving 1 block
+        if self.last_move_mine:
+            # no need to use clearance if we are mining
             steps = self.move_relative(rel_move, clearance_height=0, load_waypoints=False)
         else:
             steps = self.move_relative(rel_move, load_waypoints=False)
