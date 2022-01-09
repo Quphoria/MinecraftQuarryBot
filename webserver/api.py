@@ -133,11 +133,13 @@ def position_api():
 def waypoint_api():
     try:
         d = request.get_data().decode()
+        if d.startswith("no gps location"):
+            print(f"[Waypoint {waypoint_id()}] No GPS Location")
+            return gen_resp(400, "") 
         update_waypoint(waypoint_id(), d)
-        # print(f"[{waypoint_id()}] Waypoint: {d}")
+        # print(f"[Waypoint {waypoint_id()}] Waypoint: {d}")
         return gen_resp(200, "")
     except Exception as ex:
-        raise ex
         return gen_resp(500, "error")
 
 @app.route("/api/swing", methods=['POST', 'OPTIONS'])
@@ -194,7 +196,7 @@ def error_api():
             r.error(d)
             return gen_resp(200, "")
         elif sender == "waypoint":
-            w = get_robot(sender_id)
+            w = get_waypoint(sender_id)
             w.error(d)
             return gen_resp(200, "")
         return gen_resp(500, "")

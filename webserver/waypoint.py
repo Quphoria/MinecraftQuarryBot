@@ -74,7 +74,7 @@ class Waypoint:
         self.save()
 
     def error(self, e):
-        print(f"[Waypoint {self.bot_id}] Had an error {e}")
+        print(f"[Waypoint {self.waypoint_id}] Had an error {e}")
         self.errors.append(e)
         self.save()
 

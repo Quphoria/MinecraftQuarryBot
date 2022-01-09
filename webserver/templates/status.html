@@ -205,7 +205,7 @@
             function waypointErrorButtonFormatter(value, row, index){
                 var button = $($("#errorButton").html());
                 button.attr("data-id", row.id);
-                button.attr("data-waypoint", "robot");
+                button.attr("data-type", "waypoint");
                 button.attr("data-errors", JSON.stringify(row.errors));
                 // hide button with this
                 // this makes all rows same height
@@ -260,6 +260,7 @@
 
                 modal.find('.id').text(target_id);
                 modal.find('.id').val(target_id);
+                modal.find('.type').text(target_type);
                 modal.find('.type').val(target_type);
             });
             $('.nav-tabs a').on('click',function(){ window.location.hash = $(this).attr('href'); });
