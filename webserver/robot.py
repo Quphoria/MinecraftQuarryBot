@@ -381,7 +381,7 @@ class Robot:
                         # if is at home waypoint and wp is powered
                         # stay at home
                         # print(f"[{self.bot_id}] at home")
-                        pass
+                        return "z" # sleep
                     elif self.get_mine() or self.new_mine():
                         if self.empty_slots:
                             self.next_program = Program.Mine
