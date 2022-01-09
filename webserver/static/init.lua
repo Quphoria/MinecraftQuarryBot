@@ -1,9 +1,11 @@
 local shell = require("shell")
 local os = require("os")
 
--- Put the following in .shrc
+local url = "http://uni.quphoria.co.uk:7777/static/"
+
+-- Put the following in .shrc (Replace {URL} with the flask server)
 -- rm -rf /tmp/init.lua
--- wget http://uni.quphoria.co.uk:7777/init.lua /tmp/init.lua
+-- wget http://{URL}/init.lua /tmp/init.lua
 -- /tmp/init.lua
 -- echo "Rebooting in 10 seconds"
 -- echo "Press Ctrl+Alt+C to cancel"
@@ -20,13 +22,13 @@ shell.setWorkingDirectory("/tmp")
 
 while true do
     os.sleep(2)
-    shell.execute("wget http://uni.quphoria.co.uk:7777/static/main.lua main.lua")
+    shell.execute("wget "..url.."main.lua main.lua")
     shell.execute("main.lua")
     shell.execute("rm main.lua")
 end
 
 -- while true do
---     shell.execute("wget http://uni.quphoria.co.uk:7777/static/level.lua level.lua")
+--     shell.execute("wget "..url.."level.lua level.lua")
 --     shell.execute("level.lua")
 --     shell.execute("rm level.lua")
 --     os.sleep(2)

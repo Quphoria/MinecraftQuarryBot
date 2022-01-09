@@ -4,10 +4,10 @@
 
 Prepare OS disk with OpenOS
 
-Put the following into /home/.shrc
+Put the following into /home/.shrc (Replace {URL} with the flask server)  
 ```sh
 rm -rf /tmp/*
-wget http://uni.quphoria.co.uk:7777/init.lua /tmp/init.lua
+wget http://{URL}/init.lua /tmp/init.lua
 /tmp/init.lua
 echo "Rebooting in 10 seconds"
 echo "Press Ctrl+Alt+C to cancel"
