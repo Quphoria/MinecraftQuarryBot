@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 import os, sys, json, time
 
-from mc import Pos
+from mc import Pos, mod
 from mine import get_mine, new_mine
 
 waypoints = {}
@@ -13,7 +13,9 @@ class Waypoint:
     label: str = field(default_factory=lambda: "NewWaypoint")
     powered: bool = False
     errors: list[str] = field(default_factory=lambda: [])
-    last_update: int = 0
+    # when a waypoint created, make it initially connected at first
+    # this is because homes which are paused won't work until they are online
+    last_update: int = field(default_factory=lambda: time.time())
 
     def save(self):
         data = {
@@ -21,7 +23,8 @@ class Waypoint:
             "pos": self.pos.to_list(),
             "label": self.label,
             "powered": self.powered,
-            "errors": self.errors
+            "errors": self.errors,
+            "mod": mod
         }
         filename = f"waypoint-{self.waypoint_id}.json"
         with open(os.path.join(sys.path[0], "waypoints", filename), "w") as f: 
@@ -32,6 +35,10 @@ class Waypoint:
         try:
             with open(os.path.join(sys.path[0], "waypoints", filename), "r") as f: 
                 data = json.load(f)
+            if data.get("mod", None) != mod:
+                # this waypoint is from a diffent mod
+                return None
+
             pos = Pos.from_list(data["pos"])
             w = Waypoint(data["waypoint_id"], pos=pos,
                 label=data["label"], powered=data["powered"],

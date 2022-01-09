@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 import math
 
+mod = "opencomputers"
+
 @dataclass
 class Pos:
     x: int

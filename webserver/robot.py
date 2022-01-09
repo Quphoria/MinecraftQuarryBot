@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 import math, re, sys, os, secrets, time, json
 
-from mc import Pos
+from mc import Pos, mod
 from waypoint import Waypoint, get_waypoint, update_waypoint, \
     get_waypoints_by_label, load_waypoints, waypoint_status, waypoint_info
 from mine import get_mine, new_mine, get_free_mine, \
@@ -72,7 +72,8 @@ class Robot:
         data = {
             "bot_id": self.bot_id,
             "mine_id": self.mine_id,
-            "errors": self.errors
+            "errors": self.errors,
+            "mod": mod
         }
         filename = f"bot-{self.bot_id}.json"
         with open(os.path.join(sys.path[0], "bots", filename), "w") as f: 
@@ -83,6 +84,11 @@ class Robot:
         try:
             with open(os.path.join(sys.path[0], "bots", filename), "r") as f: 
                 data = json.load(f)
+            
+            if data.get("mod", None) != mod:
+                # this bot is from a diffent mod
+                return None
+
             bot = Robot(data["bot_id"], mine_id=data["mine_id"],
                 errors=data["errors"], from_save=True)
             return bot
@@ -366,7 +372,7 @@ class Robot:
                         return ""
                     # home position is 1 block above
                     home_position = wp.pos + Pos(0,1,0)
-                    self.paused_at_home = wp and home_position == self.pos and wp.powered
+                    self.paused_at_home = wp and home_position == self.pos and wp.powered and wp.is_connected()
                     if self.paused_at_home:
                         # if is at home waypoint and wp is powered
                         # stay at home

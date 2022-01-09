@@ -1,7 +1,7 @@
 from dataclasses import dataclass, InitVar, field
 import os, sys, json
 
-from mc import Pos
+from mc import Pos, mod
 
 mines = {}
 
@@ -44,7 +44,8 @@ class Mine:
             "current": self.current.to_list(),
             "stopped": self.stopped,
             "complete": self.complete,
-            "pos_x": self.pos_x
+            "pos_x": self.pos_x,
+            "mod": mod
         }
         filename = f"mine-{self.mine_id}.json"
         with open(os.path.join(sys.path[0], "mines", filename), "w") as f: 
@@ -55,6 +56,10 @@ class Mine:
         try:
             with open(os.path.join(sys.path[0], "mines", filename), "r") as f: 
                 data = json.load(f)
+            if data.get("mod", None) != mod:
+                # this mine is from a diffent mod
+                return None
+
             p1 = Pos.from_list(data["corner1"])
             p2 = Pos.from_list(data["corner2"])
             mine = Mine(data["mine_id"], p1, p2, from_save=True)
