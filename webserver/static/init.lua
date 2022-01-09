@@ -3,14 +3,6 @@ local os = require("os")
 
 local url = "http://mc.quphoria.co.uk:7777/static/"
 
--- Put the following in .shrc (Replace {URL} with the flask server)
--- rm -rf /tmp/init.lua
--- wget http://{URL}/init.lua /tmp/init.lua
--- /tmp/init.lua
--- echo "Rebooting in 10 seconds"
--- echo "Press Ctrl+Alt+C to cancel"
--- sleep 10s && reboot
-
 print("Starting program, press Ctrl+Alt+C to cancel")
 
 -- os.sleep(5)

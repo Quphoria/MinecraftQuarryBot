@@ -68,9 +68,9 @@ def status_page():
     return render_template('status.html',
         robots=robot_info(), mines=mine_info())
 
-@app.route("/init.lua")
-def init_lua():
-    return app.send_static_file("init.lua")
+@app.route("/boot.lua")
+def boot_lua():
+    return app.send_static_file("boot.lua")
 
 @app.route("/favicon.ico")
 def favicon():
