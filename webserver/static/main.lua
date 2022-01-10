@@ -122,11 +122,11 @@ function Get_energy()
 end
 
 function Mine_below()
-    local block = turtle.inspectDown()
-    if not block then
-        Send_data("fail: air", "swing")
-        return
-    end
+    -- local block = turtle.inspectDown()
+    -- if not block then
+    --     Send_data("fail: air", "swing")
+    --     return
+    -- end
 
     local success, status = turtle.digDown("left")
     if success then
