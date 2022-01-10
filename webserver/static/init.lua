@@ -1,6 +1,7 @@
 local url = "http://mc.quphoria.co.uk:7777/static/"
 
 print("Starting program, hold Ctrl+T to cancel")
+os.sleep(2)
 
 -- os.sleep(5)
 
@@ -8,7 +9,6 @@ print("Starting program, hold Ctrl+T to cancel")
 -- os.setComputerLabel()
 
 while true do
-    os.sleep(2)
     if turtle then
         shell.run("wget "..url.."main.lua main.lua")
     else
@@ -17,4 +17,5 @@ while true do
     shell.run("main.lua")
     shell.run("rm main.lua")
     -- break
+    os.sleep(10) -- 10 seconds wait to prevent spamming
 end
