@@ -289,6 +289,7 @@ class Robot:
             steps = self.move_to_waypoint("Dump", height_offset=2)
             if steps:
                 steps.append("d") # start dumping
+                steps.append("e") # update empty slots
         elif p == Program.BreakBlock:
             steps = self.move_to_waypoint("BreakBlock", height_offset=2)
             if steps:
@@ -310,6 +311,16 @@ class Robot:
     def clear_errors(self):
         self.errors = []
         self.save()
+
+    def get_work(self):
+        if self.get_mine() or self.new_mine():
+            if self.empty_slots:
+                self.next_program = Program.Mine
+            else:
+                # dump items if no empty slots
+                self.next_program = Program.Dump
+            return True
+        return False
 
     def next_step(self, retry=False, renew=False):
         if not self.connected:
@@ -355,14 +366,9 @@ class Robot:
             elif p == Program.Home:
                 self.next_program = Program.Idle
             elif p == Program.Dump:
-                if self.get_mine() is None:
-                    if self.new_mine():
-                        self.next_program = Program.Mine
-                    else:
-                        # go home if no more mines
-                        self.next_program = Program.Home
-                else:
-                    self.next_program = Program.Mine
+                if not self.get_work():
+                    # go home if no more work
+                    self.next_program = Program.Home
             elif p == Program.Idle:
                 if self.pos is None:
                     print(f"[{self.bot_id}] idle, no position")
@@ -382,12 +388,9 @@ class Robot:
                         # stay at home
                         # print(f"[{self.bot_id}] at home")
                         return "z" # sleep
-                    elif self.get_mine() or self.new_mine():
-                        if self.empty_slots:
-                            self.next_program = Program.Mine
-                        else:
-                            # dump items if no empty slots
-                            self.next_program = Program.Dump
+                    elif self.get_work():
+                        # next program already set
+                        pass
                     elif not at_home: # not at home
                         self.next_program = Program.Home
                     else:

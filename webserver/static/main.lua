@@ -82,10 +82,15 @@ function Pos_string()
 end
 
 function Refuel()
+    local last_level = turtle.getFuelLevel()
+    if last_level >= turtle.getFuelLimit() - 1000 then
+        -- if within 1000 of max fuel level, don't refuel
+        return
+    end
+    
     local last_slot = turtle.getSelectedSlot()
     -- select last slot for fuel
     turtle.select(16)
-    local last_level = turtle.getFuelLevel()
     while last_level < turtle.getFuelLimit() do
         -- refuel 1 item at a time to prevent wasting fuel
         if not turtle.refuel(1) then
